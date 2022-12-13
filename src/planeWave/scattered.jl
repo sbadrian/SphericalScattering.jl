@@ -115,6 +115,7 @@ function scatteredfield(
     point_sph = cart2sph(point) # [r ϑ φ]
 
     k₁ = excitation.wavenumber
+
     T = typeof(k₁)
 
     eps = parameter.relativeAccuracy
@@ -130,6 +131,9 @@ function scatteredfield(
 
     k₁r = k₁ * point_sph[1]
     k₁a = k₁ * sphere.radius
+
+    k₂r = k₁ * point_sph[1]
+    k₂a = k₁ * sphere.radius
 
     sinϑ = abs(sin(point_sph[2]))  # note: theta only defined from from 0 to pi
     cosϑ = cos(point_sph[2])       # ok for theta > pi
