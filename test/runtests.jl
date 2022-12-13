@@ -45,7 +45,9 @@ c = 1 / sqrt(𝜇 * 𝜀)
 points_cartFF, points_sphFF = getDefaultPoints(1.0)
 points_cartNF, points_sphNF = getDefaultPoints(5.0)
 
+include("planeWave_dielectric.jl")
 
+if false==true
 # ----- testsets
 @testset "Testing SphericalScattering functionality" begin
 
@@ -77,4 +79,5 @@ points_cartNF, points_sphNF = getDefaultPoints(5.0)
         pkgpath = pkgdir(SphericalScattering)   # path of this package including name
         @test format(pkgpath, overwrite=false)  # check whether files are formatted according to the .JuliaFormatter.toml 
     end
+end
 end

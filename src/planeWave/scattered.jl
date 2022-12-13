@@ -1,10 +1,10 @@
 
 """
-    scatteredfield(sphere::PECSphere, excitation::PlaneWave, quantity::Field; parameter::Parameter=Parameter())
+    scatteredfield(sphere::Sphere, excitation::PlaneWave, quantity::Field; parameter::Parameter=Parameter())
     
 Compute the electric field scattered by a PEC sphere, for an incident plane wave.
 """
-function scatteredfield(sphere::PECSphere, excitation::PlaneWave, quantity::Field; parameter::Parameter=Parameter())
+function scatteredfield(sphere::Sphere, excitation::PlaneWave, quantity::Field; parameter::Parameter=Parameter())
 
     sphere.embedding == excitation.embedding || error("Excitation and sphere are not in the same medium.") # verify excitation and sphere are in the same medium
 
@@ -96,6 +96,79 @@ function scatteredfield(sphere::PECSphere, excitation::PlaneWave, point, quantit
     end
 
     return convertSpherical2Cartesian(E₀ .* SVector(Er, Eϑ, Eϕ), point_sph)
+end
+
+
+
+"""
+    scatteredfield(sphere::PECSphere, excitation::PlaneWave, point, quantity::ElectricField; parameter::Parameter=Parameter())
+
+Compute the electric field scattered by a dielectric sphere, for an incident plane wave
+travelling in +z-direction with E-field polarization in x-direction.
+
+The point and the returned field are in Cartesian coordinates.
+"""
+function scatteredfield(
+    sphere::DielectricSphere, excitation::PlaneWave, point, quantity::ElectricField; parameter::Parameter=Parameter()
+)
+
+    point_sph = cart2sph(point) # [r ϑ φ]
+
+    k₁ = excitation.wavenumber
+    T = typeof(k₁)
+
+    eps = parameter.relativeAccuracy
+
+    point_sph[1] <= sphere.radius && return SVector{3,Complex{T}}(0.0, 0.0, 0.0) # inside the sphere the field is 0
+
+    Er = Complex{T}(0.0)
+    Eϑ = Complex{T}(0.0)
+    Eϕ = Complex{T}(0.0)
+
+    δE = T(Inf)
+    n = 0
+
+    k₁r = k₁ * point_sph[1]
+    k₁a = k₁ * sphere.radius
+
+    sinϑ = abs(sin(point_sph[2]))  # note: theta only defined from from 0 to pi
+    cosϑ = cos(point_sph[2])       # ok for theta > pi
+    sinϕ = sin(point_sph[3])
+    cosϕ = cos(point_sph[3])
+
+    # first two values of the Associated Legendre Polynomial
+    plm = Vector{T}()
+    push!(plm, -sinϑ)
+    push!(plm, -T(3.0) * sinϑ * cosϑ)
+
+    s = sqrt(π / 2 / kr)
+
+    try
+        while δE > eps
+            n += 1
+
+            aₙ, bₙ = scatterCoeff(sphere, excitation, n, ka)
+
+            Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
+
+            ΔEr = +(cosϕ / (im * kr^2)) * aₙ * Nn_r
+            ΔEϑ = -(cosϕ / kr) * (aₙ * Nn_ϑ + bₙ * Mn_ϑ)
+            ΔEϕ = +(sinϕ / kr) * (aₙ * Nn_ϕ + bₙ * Mn_ϕ)
+
+            Er += ΔEr
+            Eϑ += ΔEϑ
+            Eϕ += ΔEϕ
+
+            δE = (abs(ΔEr) + abs(ΔEϑ) + abs(ΔEϕ)) / (abs(Er) + abs(Eϑ) + abs(Eϕ)) # relative change
+
+            n > 1 && push!(plm, (T(2.0) * n + 1) * cosϑ * plm[n] / n - (n + 1) * plm[n - 1] / n) # recurrence relationship for next associated Legendre polynomials
+        end
+    catch
+
+    end
+
+    #return SVector(Er, Eϑ, Eϕ)
+    return convertSpherical2Cartesian(SVector(Er, Eϑ, Eϕ), point_sph)
 end
 
 
