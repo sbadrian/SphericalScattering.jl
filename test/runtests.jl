@@ -34,7 +34,7 @@ BEAST.cross(::BEAST.NormalVector, p::Excitation) = CrossTraceMW(p)
 # ----- variables used in all tests
 spRadius = 1.0 # radius of sphere
 
-Γ  = meshsphere(spRadius, 0.45)
+Γ  = meshsphere(spRadius, 0.4)
 RT = raviartthomas(Γ)
 
 𝜇 = SphericalScattering.μ0
