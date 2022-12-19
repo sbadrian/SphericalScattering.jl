@@ -46,7 +46,7 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
 
     eps = parameter.relativeAccuracy
 
-    sphere isa PECSphere && point_sph[1] <= sphere.radius && return SVector{3,Complex{T}}(0.0, 0.0, 0.0) # inside the sphere the field is 0
+    sphere isa PECSphere && r <= sphere.radius && return SVector{3,Complex{T}}(0.0, 0.0, 0.0) # inside the sphere the field is 0
 
     Er = Complex{T}(0.0)
     Eϑ = Complex{T}(0.0)
@@ -69,11 +69,7 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
         while δE > eps
             n += 1
 
-            if sphere isa PECSphere
-                aₙ, bₙ = scatterCoeff(sphere, excitation, n)
-            else
-                aₙ, bₙ, cₙ, dₙ = scatterCoeff(sphere, excitation, n)
-            end
+            coeffs = scatterCoeff(sphere, excitation, n)        
 
             k = wavenumber(sphere, excitation, r)
 
@@ -82,10 +78,12 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
 
             if r >= sphere.radius
                 Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
+                aₙ = coeffs[1]
+                bₙ = coeffs[2]
             else
                 Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion_dielectric_inner(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
-                aₙ = cₙ
-                bₙ = dₙ
+                aₙ = coeffs[3]
+                bₙ = coeffs[4]
             end
 
             ΔEr = +(cosϕ / (im * kr^2)) * aₙ * Nn_r
@@ -152,11 +150,7 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
         while δH > eps
             n += 1
 
-            if sphere isa PECSphere
-                aₙ, bₙ = scatterCoeff(sphere, excitation, n)
-            else
-                aₙ, bₙ, cₙ, dₙ = scatterCoeff(sphere, excitation, n)
-            end
+            coeffs = scatterCoeff(sphere, excitation, n)
 
             k = wavenumber(sphere, excitation, r)
 
@@ -165,11 +159,12 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
 
             if r >= sphere.radius
                 Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
+                aₙ = coeffs[1]
+                bₙ = coeffs[2]
             else
-                s = sqrt(π / 2 / kr)
                 Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion_dielectric_inner(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
-                aₙ = cₙ
-                bₙ = dₙ
+                aₙ = coeffs[3]
+                bₙ = coeffs[4]
             end
 
             ΔHr = +(sinϕ / (im * kr^2)) * bₙ * Nn_r
