@@ -17,8 +17,8 @@ struct DielectricSphere{C,R} <: Sphere
     filling::Medium{C}
 end
 
-function wavenumber(r, sp::Sphere, ex::Excitation)
-    if r > sp.radius
+function wavenumber(sp::Sphere, ex::Excitation, r)
+    if r >= sp.radius
         ε = sp.embedding.ε
         μ = sp.embedding.μ
     else
@@ -36,7 +36,21 @@ function wavenumber(r, sp::Sphere, ex::Excitation)
     return k
 end
 
+function impedance(sp::Sphere, r)
+    if r >= sp.radius
+        ε = sp.embedding.ε
+        μ = sp.embedding.μ
+    else
+        if sp isa DielectricSphere
+            ε = sp.filling.ε
+            μ = sp.filling.μ
+        elseif sp isa PECSphere
+            return typeof(ex.frequency)(0.0)
+        end
+    end
 
+    return sqrt(μ/ε)
+end
 
 """
     DielectricSphere(;

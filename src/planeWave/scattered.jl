@@ -75,7 +75,7 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
                 aₙ, bₙ, cₙ, dₙ = scatterCoeff(sphere, excitation, n)
             end
 
-            k = wavenumber(r, sphere, excitation)
+            k = wavenumber(sphere, excitation, r)
 
             kr = k*r
             s = sqrt(π / 2 / kr)
@@ -110,122 +110,25 @@ end
 
 
 """
-    scatteredfield(sphere::PECSphere, excitation::PlaneWave, point, quantity::MagneticField; parameter::Parameter=Parameter())
+    scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::MagneticField; parameter::Parameter=Parameter())
 
-Compute the magnetic field scattered by a PEC sphere, for an incident plane wave
+Compute the magnetic field scattered by a PEC or a dielectric sphere, for an incident plane wave
 travelling in +z-direction with E-field polarization in x-direction.
 
 The point and the returned field are in Cartesian coordinates.
 """
-function scatteredfield(sphere::PECSphere, excitation::PlaneWave, point, quantity::MagneticField; parameter::Parameter=Parameter())
+function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::MagneticField; parameter::Parameter=Parameter())
 
     point_sph = cart2sph(point) # [r ϑ φ]
-
-    k = wavenumber(excitation)
-    T = typeof(excitation.frequency)
-    μ = excitation.embedding.μ
-    ε = excitation.embedding.ε
-    η = sqrt(μ / ε)
-    H₀ = 1 / η * excitation.amplitude
-
-    eps = parameter.relativeAccuracy
-
-    point_sph[1] <= sphere.radius && return SVector{3,Complex{T}}(0.0, 0.0, 0.0) # inside the sphere the field is 0
-
-    Hr = Complex{T}(0.0)
-    Hϑ = Complex{T}(0.0)
-    Hϕ = Complex{T}(0.0)
-
-    δH = T(Inf)
-    n = 0
-
-    kr = k * point_sph[1]
-    ka = k * sphere.radius
-
-    sinϑ = abs(sin(point_sph[2]))  # note: theta only defined from from 0 to pi
-    cosϑ = cos(point_sph[2])       # ok for theta > pi
-    sinϕ = sin(point_sph[3])
-    cosϕ = cos(point_sph[3])
-
-    # first two values of the Associated Legendre Polynomial
-    plm = Vector{T}()
-    push!(plm, -sinϑ)
-    push!(plm, -T(3.0) * sinϑ * cosϑ)
-
-    s = sqrt(π / 2 / kr)
-
-    try
-        while δH > eps
-            n += 1
-
-            aₙ, bₙ = scatterCoeff(sphere, excitation, n)
-            Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
-
-            ΔHr = +(sinϕ / (im * kr^2)) * bₙ * Nn_r
-            ΔHϑ = -(sinϕ / kr) * (aₙ * Mn_ϑ + bₙ * Nn_ϑ)
-            ΔHϕ = -(cosϕ / kr) * (aₙ * Mn_ϕ + bₙ * Nn_ϕ)
-
-            Hr += ΔHr
-            Hϑ += ΔHϑ
-            Hϕ += ΔHϕ
-
-            δH = (abs(ΔHr) + abs(ΔHϑ) + abs(ΔHϕ)) / (abs(Hr) + abs(Hϑ) + abs(Hϕ)) # relative change
-
-            n > 1 && push!(plm, (T(2.0) * n + 1) * cosϑ * plm[n] / n - (n + 1) * plm[n - 1] / n) # recurrence relationship for next associated Legendre polynomials
-        end
-    catch
-
-    end
-
-    return convertSpherical2Cartesian(H₀ .* SVector(Hr, Hϑ, Hϕ), point_sph)
-end
-
-
-
-"""
-    scatteredfield(sphere::DielectricSphere, excitation::PlaneWave, point, quantity::MagneticField; parameter::Parameter=Parameter())
-
-Compute the magnetic field scattered by a dielectric sphere, for an incident plane wave
-travelling in +z-direction with E-field polarization in x-direction.
-
-The point and the returned field are in Cartesian coordinates.
-"""
-function scatteredfield(
-    sphere::DielectricSphere, excitation::PlaneWave, point, quantity::MagneticField; parameter::Parameter=Parameter()
-)
-
-    point_sph = cart2sph(point) # [r ϑ φ]
-
-    f = excitation.frequency
-
-    ε2 = sphere.embedding.ε
-    μ2 = sphere.embedding.μ
-
-    ε1 = sphere.filling.ε
-    μ1 = sphere.filling.μ
-
-    c2 = 1/sqrt(ε2*μ2)
-    c1 = 1/sqrt(ε1*μ1)
-
-    k2 = 2π * f / c2
-    k1 = 2π * f / c1
-
-    T = typeof(f)
-
-    eps = parameter.relativeAccuracy
-
     r = point_sph[1]
 
-    η2 = sqrt(μ2/ε2)
-    η1 = sqrt(μ1/ε1)    
-
-    if r >= sphere.radius
-        H₀ = 1 / η2 * excitation.amplitude
-    else
-        H₀ = 1 / η1 * excitation.amplitude
-    end
+    T = typeof(excitation.frequency)
 
     eps = parameter.relativeAccuracy
+
+    sphere isa PECSphere && r <= sphere.radius && return SVector{3,Complex{T}}(0.0, 0.0, 0.0) # inside the sphere the field is 0
+
+    H₀ = 1 / impedance(sphere, r) * excitation.amplitude
 
     Hr = Complex{T}(0.0)
     Hϑ = Complex{T}(0.0)
@@ -233,10 +136,7 @@ function scatteredfield(
 
     δH = T(Inf)
     n = 0
-
-    k₂r = k2 * point_sph[1]
-    k₁r = k1 * point_sph[1]
-
+ 
     sinϑ = abs(sin(point_sph[2]))  # note: theta only defined from from 0 to pi
     cosϑ = cos(point_sph[2])       # ok for theta > pi
     sinϕ = sin(point_sph[3])
@@ -247,19 +147,26 @@ function scatteredfield(
     push!(plm, -sinϑ)
     push!(plm, -T(3.0) * sinϑ * cosϑ)
 
-    try
+
+    #try
         while δH > eps
             n += 1
 
-            aₙ, bₙ, cₙ, dₙ = scatterCoeff(sphere, excitation, n)
+            if sphere isa PECSphere
+                aₙ, bₙ = scatterCoeff(sphere, excitation, n)
+            else
+                aₙ, bₙ, cₙ, dₙ = scatterCoeff(sphere, excitation, n)
+            end
+
+            k = wavenumber(sphere, excitation, r)
+
+            kr = k*r
+            s = sqrt(π / 2 / kr)
 
             if r >= sphere.radius
-                s = sqrt(π / 2 / k₂r)
-                kr = k₂r
                 Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
             else
-                s = sqrt(π / 2 / k₁r)
-                kr = k₁r
+                s = sqrt(π / 2 / kr)
                 Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion_dielectric_inner(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
                 aₙ = cₙ
                 bₙ = dₙ
@@ -277,9 +184,9 @@ function scatteredfield(
 
             n > 1 && push!(plm, (T(2.0) * n + 1) * cosϑ * plm[n] / n - (n + 1) * plm[n - 1] / n) # recurrence relationship for next associated Legendre polynomials
         end
-    catch
+    #catch
 
-    end
+    #end
 
     return convertSpherical2Cartesian(H₀ .* SVector(Hr, Hϑ, Hϕ), point_sph)
 end
