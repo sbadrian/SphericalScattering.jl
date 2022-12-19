@@ -40,7 +40,7 @@ function scatteredfield(sphere::PECSphere, excitation::PlaneWave, point, quantit
 
     point_sph = cart2sph(point) # [r ϑ φ]
 
-    k = excitation.wavenumber
+    k = wavenumber(excitation)
     E₀ = excitation.amplitude
 
     T = typeof(excitation.frequency)
@@ -116,18 +116,6 @@ function scatteredfield(
 
     f = excitation.frequency
 
-    ε2 = sphere.embedding.ε
-    μ2 = sphere.embedding.μ
-
-    ε1 = sphere.filling.ε
-    μ1 = sphere.filling.μ
-
-    c2 = 1/sqrt(ε2*μ2)
-    c1 = 1/sqrt(ε1*μ1)
-
-    k2 = 2π * f / c2
-    k1 = 2π * f / c1
-
     T = typeof(f)
 
     eps = parameter.relativeAccuracy
@@ -140,9 +128,6 @@ function scatteredfield(
 
     δE = T(Inf)
     n = 0
-
-    k₂r = k2 * point_sph[1]
-    k₁r = k1 * point_sph[1]
 
     sinϑ = abs(sin(point_sph[2]))  # note: theta only defined from from 0 to pi
     cosϑ = cos(point_sph[2])       # ok for theta > pi
@@ -161,13 +146,13 @@ function scatteredfield(
 
             aₙ, bₙ, cₙ, dₙ = scatterCoeff(sphere, excitation, n)
 
+            ε, μ, c, k = constants(r, sphere, excitation)
+            kr = k*r
+            s = sqrt(π / 2 / kr)
+
             if r >= sphere.radius
-                s = sqrt(π / 2 / k₂r)
-                kr = k₂r
                 Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
             else
-                s = sqrt(π / 2 / k₁r)
-                kr = k₁r
                 Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion_dielectric_inner(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
                 aₙ = cₙ
                 bₙ = dₙ
@@ -207,7 +192,7 @@ function scatteredfield(sphere::PECSphere, excitation::PlaneWave, point, quantit
 
     point_sph = cart2sph(point) # [r ϑ φ]
 
-    k = excitation.wavenumber
+    k = wavenumber(excitation)
     T = typeof(excitation.frequency)
     μ = excitation.embedding.μ
     ε = excitation.embedding.ε
@@ -384,7 +369,7 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
 
     point_sph = cart2sph(point) # [r ϑ φ]
 
-    k = excitation.wavenumber
+    k = wavenumber(excitation)
     E₀ = excitation.amplitude
 
     T = typeof(excitation.frequency)
@@ -408,7 +393,7 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
     δE = T(Inf)
     n = 0
 
-    #try
+    try
         while δE > eps || n < 10
             n += 1
 
@@ -432,9 +417,9 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
 
             n > 1 && push!(plm, (T(2.0) * n + 1) * cosϑ * plm[n] / n - (n + 1) * plm[n - 1] / n) # recurrence relationship associated Legendre polynomial
         end
-    #catch
+    catch
 
-    #end
+    end
 
     return convertSpherical2Cartesian(E₀ .* SVector{3,Complex{T}}(0.0, Eϑ, Eϕ), point_sph)
 end
@@ -449,6 +434,11 @@ Compute scattering coefficients for a plane wave travelling in +z-direction with
 function scatterCoeff(sphere::PECSphere, excitation::PlaneWave, n::Int, ka)
 
     T = typeof(excitation.frequency)
+
+    k = wavenumber(excitation)
+
+    ka = k*sphere.radius
+
     s = sqrt(π / 2 / ka)
 
     Ĵ  = ka * s * besselj(n + T(0.5), ka)   # Riccati-Bessel function
@@ -471,7 +461,6 @@ end
 function scatterCoeff(sphere::DielectricSphere, excitation::PlaneWave, n::Int)
 
     f = excitation.frequency
-
     T = typeof(f)
 
     ε2 = sphere.embedding.ε

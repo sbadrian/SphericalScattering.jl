@@ -17,6 +17,22 @@ struct DielectricSphere{C,R} <: Sphere
     filling::Medium{C}
 end
 
+function constants(r, sp::DielectricSphere, ex::Excitation)
+    if r > sp.radius
+        ε = sp.embedding.ε
+        μ = sp.embedding.μ
+    else
+        ε = sp.filling.ε
+        μ = sp.filling.μ
+    end
+    c = 1/sqrt(ε*μ)
+    k = 2π * ex.frequency / c
+
+    return ε, μ, c, k
+end
+
+
+
 """
     DielectricSphere(;
         radius=error("missing argument `radius`"), embedding=Medium(ε0, μ0), filling=error("missing argument `filling`")
