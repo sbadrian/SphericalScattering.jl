@@ -302,11 +302,22 @@ function scatteredfield(
 
     r = point_sph[1]
 
-    Er = Complex{T}(0.0)
-    Eϑ = Complex{T}(0.0)
-    Eϕ = Complex{T}(0.0)
+    η2 = sqrt(μ2/ε2)
+    η1 = sqrt(μ1/ε1)    
 
-    δE = T(Inf)
+    if r >= sphere.radius
+        H₀ = 1 / η2 * excitation.amplitude
+    else
+        H₀ = 1 / η1 * excitation.amplitude
+    end
+
+    eps = parameter.relativeAccuracy
+
+    Hr = Complex{T}(0.0)
+    Hϑ = Complex{T}(0.0)
+    Hϕ = Complex{T}(0.0)
+
+    δH = T(Inf)
     n = 0
 
     k₂r = k2 * point_sph[1]
@@ -322,9 +333,8 @@ function scatteredfield(
     push!(plm, -sinϑ)
     push!(plm, -T(3.0) * sinϑ * cosϑ)
 
-
-    #try
-        while δE > eps
+    try
+        while δH > eps
             n += 1
 
             aₙ, bₙ, cₙ, dₙ = scatterCoeff(sphere, excitation, n)
@@ -341,24 +351,23 @@ function scatteredfield(
                 bₙ = dₙ
             end
 
-            ΔEr = +(cosϕ / (im * kr^2)) * aₙ * Nn_r
-            ΔEϑ = -(cosϕ / kr) * (aₙ * Nn_ϑ + bₙ * Mn_ϑ)
-            ΔEϕ = +(sinϕ / kr) * (aₙ * Nn_ϕ + bₙ * Mn_ϕ)
+            ΔHr = +(sinϕ / (im * kr^2)) * bₙ * Nn_r
+            ΔHϑ = -(sinϕ / kr) * (aₙ * Mn_ϑ + bₙ * Nn_ϑ)
+            ΔHϕ = -(cosϕ / kr) * (aₙ * Mn_ϕ + bₙ * Nn_ϕ)
 
-            Er += ΔEr
-            Eϑ += ΔEϑ
-            Eϕ += ΔEϕ
+            Hr += ΔHr
+            Hϑ += ΔHϑ
+            Hϕ += ΔHϕ
 
-            δE = (abs(ΔEr) + abs(ΔEϑ) + abs(ΔEϕ)) / (abs(Er) + abs(Eϑ) + abs(Eϕ)) # relative change
+            δH = (abs(ΔHr) + abs(ΔHϑ) + abs(ΔHϕ)) / (abs(Hr) + abs(Hϑ) + abs(Hϕ)) # relative change
 
             n > 1 && push!(plm, (T(2.0) * n + 1) * cosϑ * plm[n] / n - (n + 1) * plm[n - 1] / n) # recurrence relationship for next associated Legendre polynomials
         end
-    #catch
+    catch
 
-    #end
+    end
 
-    #return SVector(Er, Eϑ, Eϕ)
-    return convertSpherical2Cartesian(SVector(Er, Eϑ, Eϕ), point_sph)
+    return convertSpherical2Cartesian(H₀ .* SVector(Hr, Hϑ, Hϕ), point_sph)
 end
 
 

@@ -1,4 +1,4 @@
-f = 1e8
+f = 1e7
 κ = 2π * f / c   # Wavenumber
 
 # Embedding
@@ -6,8 +6,8 @@ f = 1e8
 ε2 = 𝜀
 
 # Filling
-ε1 = 𝜀*(8)
-μ1 = 𝜇
+ε1 = 𝜀*2.0
+μ1 = 𝜇*1.0
 
 c2 = 1/sqrt(ε2*μ2)
 c1 = 1/sqrt(ε1*μ1)
@@ -70,13 +70,13 @@ function efarfield(𝓣, j, X_j, 𝓚, m, X_m, pts)
     potential(BEAST.MWDoubleLayerFarField3D(𝓚), pts, m, X_m)
 end
 
-points_cartNF_inside, points_sphNF = getDefaultPoints(0.5)
+points_cartNF_inside, ~ = getDefaultPoints(0.5)
 
 EF₂MoM = efield(𝓣k2, j, RT, 𝓚k2, -m, RT, points_cartNF)
 EF₁MoM = efield(𝓣k1, -j, RT, 𝓚k1, +m, RT, points_cartNF_inside)
 
-ex = planeWave(; wavenumber=k2, embedding=Medium(ε2, μ2), frequency=f)
-sp = DielectricSphere(; radius=spRadius, filling=Medium(ε1, μ1), embedding=Medium(ε2, μ2))
+ex = planeWave(; wavenumber=k2, frequency=f)
+sp = DielectricSphere(; radius=spRadius, filling=Medium(ε1, μ1))
 
 EF₂ = scatteredfield(sp, ex, ElectricField(points_cartNF))
 EF₁ = scatteredfield(sp, ex, ElectricField(points_cartNF_inside))
@@ -88,16 +88,21 @@ diff_EF₁ = norm.(EF₁ - EF₁MoM) ./ maximum(norm.(EF₁))  # worst case erro
 @test maximum(20 * log10.(abs.(diff_EF₁))) < -27 # dB 
 
 ##
-HF₂MoM = hfield(𝓣k2, (1/η2)^2 .* m, RT, 𝓚k2, -j, RT, points_cartNF)
-HF₁MoM = hfield(𝓣k1, -(1/η1)^2 .* m, RT, 𝓚k1, +j, RT, points_cartNF_inside)
+HF₂MoM = hfield(𝓣k2, +(1/η2)^2 .* m, RT, 𝓚k2, +j, RT, points_cartNF)
+HF₁MoM = hfield(𝓣k1, -(1/η1)^2 .* m, RT, 𝓚k1, -j, RT, points_cartNF_inside)
 
-ex = planeWave(; wavenumber=k2, embedding=Medium(ε2, μ2), frequency=f)
-sp = DielectricSphere(; radius=spRadius, filling=Medium(ε1, μ1), embedding=Medium(ε2, μ2))
+ex = planeWave(; wavenumber=k2, frequency=f)
+sp = DielectricSphere(; radius=spRadius, filling=Medium(ε1, μ1))
 
 HF₂ = scatteredfield(sp, ex, MagneticField(points_cartNF))
+HF₁ = scatteredfield(sp, ex, MagneticField(points_cartNF_inside))
+
 
 diff_HF₂ = norm.(HF₂ - HF₂MoM) ./ maximum(norm.(HF₂))  # worst case error
+diff_HF₁ = norm.(HF₁ - HF₁MoM) ./ maximum(norm.(HF₁))  # worst case error
+
 @test maximum(20 * log10.(abs.(diff_HF₂))) < -27 # dB 
+@test maximum(20 * log10.(abs.(diff_HF₁))) < -27 # dB 
 
 ##
 function get_spherical_coordinates(fld, pts, ϑ, ϕ)
