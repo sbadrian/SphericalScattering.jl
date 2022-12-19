@@ -45,7 +45,9 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
 
     eps = parameter.relativeAccuracy
 
-    sphere isa PECSphere && r <= sphere.radius && return SVector{3,Complex{T}}(0.0, 0.0, 0.0) # inside the sphere the field is 0
+    if !(quantity isa FarField)
+        sphere isa PECSphere && r < sphere.radius && return SVector{3,Complex{T}}(0.0, 0.0, 0.0) # inside the sphere the field is 0
+    end
 
     if quantity isa MagneticField
         A₀ = 1 / impedance(sphere, r) * excitation.amplitude
@@ -70,25 +72,33 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
     push!(plm, -sinϑ)
     push!(plm, -T(3.0) * sinϑ * cosϑ)
 
-    #try
-        while δF > eps
+    try
+        while δF > eps || n < 10
             n += 1
 
             coeffs = scatterCoeff(sphere, excitation, n)        
 
-            k = wavenumber(sphere, excitation, r)
 
-            kr = k*r
-            s = sqrt(π / 2 / kr)
-
-            if r >= sphere.radius
-                Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
+            if quantity isa FarField
+                k = wavenumber(excitation)
+                Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, plm, cosϑ, sinϑ, n)
                 aₙ = coeffs[1]
                 bₙ = coeffs[2]
             else
-                Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion_dielectric_inner(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
-                aₙ = coeffs[3]
-                bₙ = coeffs[4]
+                k = wavenumber(sphere, excitation, r)
+
+                kr = k*r
+                s = sqrt(π / 2 / kr)
+    
+                if r >= sphere.radius
+                    Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
+                    aₙ = coeffs[1]
+                    bₙ = coeffs[2]
+                else
+                    Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion_dielectric_inner(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
+                    aₙ = coeffs[3]
+                    bₙ = coeffs[4]
+                end
             end
 
             if quantity isa ElectricField
@@ -99,6 +109,12 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
                 ΔFr = +(sinϕ / (im * kr^2)) * bₙ * Nn_r
                 ΔFϑ = -(sinϕ / kr) * (aₙ * Mn_ϑ + bₙ * Nn_ϑ)
                 ΔFϕ = -(cosϕ / kr) * (aₙ * Mn_ϕ + bₙ * Nn_ϕ)
+            else # FarField
+                # See Jin, (7.4.44)-(7.4.45)
+                # We deviate from Jin by replacing exp(-im*kr) / kr with 1/k
+                ΔFr = T(0)
+                ΔFϑ = -im * cosϕ * 1 / k * im^n * (aₙ * Nn_ϑ + bₙ * Mn_ϑ)
+                ΔFϕ = +im * sinϕ * 1 / k * im^n * (aₙ * Nn_ϕ + bₙ * Mn_ϕ)
             end
 
             Fr += ΔFr
@@ -109,80 +125,11 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
 
             n > 1 && push!(plm, (T(2.0) * n + 1) * cosϑ * plm[n] / n - (n + 1) * plm[n - 1] / n) # recurrence relationship for next associated Legendre polynomials
         end
-    #catch
-
-    #end
-
-    return convertSpherical2Cartesian(A₀ .* SVector(Fr, Fϑ, Fϕ), point_sph)
-end
-
-
-
-"""
-    scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::FarField; parameter::Parameter=Parameter())
-
-Compute the (electric) far-field scattered by a PEC or dielectric sphere, for an incident plane wave
-travelling in +z-direction with E-field polarization in x-direction.
-
-The point and the returned field are in Cartesian coordinates.
-"""
-function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::FarField; parameter::Parameter=Parameter())
-
-    point_sph = cart2sph(point) # [r ϑ φ]
-
-    k = wavenumber(excitation)
-    E₀ = excitation.amplitude
-
-    T = typeof(excitation.frequency)
-    eps = parameter.relativeAccuracy
-
-    sinϑ = abs(sin(point_sph[2]))  # note: theta only defined from from 0 to pi
-    cosϑ = cos(point_sph[2])       # ok for theta > pi
-    sinϕ = sin(point_sph[3])
-    cosϕ = cos(point_sph[3])
-
-    # first two values of the Associated Legendre Polynomial
-    plm = Vector{T}()
-    push!(plm, -sinϑ)
-    push!(plm, -T(3.0) * sinϑ * cosϑ)
-
-    ka = k * sphere.radius
-
-    Eϑ = Complex{T}(0.0)
-    Eϕ = Complex{T}(0.0)
-
-    δE = T(Inf)
-    n = 0
-
-    try
-        while δE > eps || n < 10
-            n += 1
-
-            if sphere isa PECSphere
-                aₙ, bₙ = scatterCoeff(sphere, excitation, n)
-            else
-                aₙ, bₙ, ~, ~ = scatterCoeff(sphere, excitation, n)
-            end
-
-            Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, ka, plm, cosϑ, sinϑ, n)
-
-            # See Jin, (7.4.44)-(7.4.45)
-            # We deviate from Jin by replacing exp(-im*kr) / kr with 1/k
-            ΔEϑ = -im * cosϕ * 1 / k * im^n * (aₙ * Nn_ϑ + bₙ * Mn_ϑ)
-            ΔEϕ = +im * sinϕ * 1 / k * im^n * (aₙ * Nn_ϕ + bₙ * Mn_ϕ)
-
-            Eϑ += ΔEϑ
-            Eϕ += ΔEϕ
-
-            δE = (abs(ΔEϑ) + abs(ΔEϕ)) / (abs(Eϑ) + abs(Eϕ)) # relative change
-
-            n > 1 && push!(plm, (T(2.0) * n + 1) * cosϑ * plm[n] / n - (n + 1) * plm[n - 1] / n) # recurrence relationship associated Legendre polynomial
-        end
     catch
 
     end
 
-    return convertSpherical2Cartesian(E₀ .* SVector{3,Complex{T}}(0.0, Eϑ, Eϕ), point_sph)
+    return convertSpherical2Cartesian(A₀ .* SVector(Fr, Fϑ, Fϕ), point_sph)
 end
 
 
@@ -334,11 +281,11 @@ end
 
 
 """
-    expansion(sphere::Sphere, excitation::PlaneWave, ka, plm, cosϑ, sinϑ, n::Int)
+    expansion(sphere::Sphere, excitation::PlaneWave, plm, cosϑ, sinϑ, n::Int)
 
 Compute far-field functional dependencies of the Mie series for a plane wave travelling in -z direction with polarization in x-direction.
 """
-function expansion(sphere::Sphere, excitation::PlaneWave, ka, plm, cosϑ, sinϑ, n::Int)
+function expansion(sphere::Sphere, excitation::PlaneWave, plm, cosϑ, sinϑ, n::Int)
 
     T = typeof(excitation.frequency)
 
