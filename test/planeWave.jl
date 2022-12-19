@@ -1,10 +1,10 @@
 
-@testset "Plane wave" begin
+@testset "PEC" begin
 
     f = 1e8
-    κ = 2π * f / c   # Wavenumber
 
-    ex = planeWave(; frequency=f)
+    sp = PECSphere(; radius=spRadius, embedding=Medium(𝜀*3, 𝜇))
+    ex = planeWave(sp; frequency=f)
 
 
     @testset "Incident fields" begin
@@ -19,10 +19,12 @@
     @testset "Scattered fields" begin
 
         # ----- BEAST solution
+        κ = 2π * f * sqrt(sp.embedding.μ * sp.embedding.ε)   # Wavenumber
+
         𝐸 = Maxwell3D.planewave(; direction=ẑ, polarization=x̂, wavenumber=κ)
 
         𝑒 = n × 𝐸 × n
-        𝑇 = Maxwell3D.singlelayer(; wavenumber=κ, alpha=-im * 𝜇 * (2π * f), beta=1 / (-im * 𝜀 * (2π * f)))
+        𝑇 = Maxwell3D.singlelayer(; wavenumber=κ, alpha=-im * sp.embedding.μ * (2π * f), beta=1 / (-im * sp.embedding.ε * (2π * f)))
 
         e = -assemble(𝑒, RT)
         T = assemble(𝑇, RT, RT)
@@ -34,8 +36,6 @@
         FF_MoM = -im * f / (2 * c) * potential(MWFarField3D(𝑇), points_cartFF, u, RT)
 
         # ----- this package
-        sp = PECSphere(; radius=spRadius)
-
         EF = scatteredfield(sp, ex, ElectricField(points_cartNF))
         HF = scatteredfield(sp, ex, MagneticField(points_cartNF))
         FF = scatteredfield(sp, ex, FarField(points_cartFF))
@@ -50,8 +50,8 @@
         #@show maximum(20 * log10.(abs.(diff_HF)))
         #@show maximum(20 * log10.(abs.(diff_FF)))
 
-        @test maximum(20 * log10.(abs.(diff_EF))) < -27 # dB 
-        @test maximum(20 * log10.(abs.(diff_HF))) < -27 # dB
-        @test maximum(20 * log10.(abs.(diff_FF))) < -27 # dB
+        @test maximum(20 * log10.(abs.(diff_EF))) < -25 # dB 
+        @test maximum(20 * log10.(abs.(diff_HF))) < -25 # dB
+        @test maximum(20 * log10.(abs.(diff_FF))) < -25 # dB
     end
 end

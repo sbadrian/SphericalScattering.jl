@@ -1,136 +1,113 @@
-f = 1e7
-κ = 2π * f / c   # Wavenumber
 
-# Embedding
-μ2 = 𝜇
-ε2 = 𝜀
+@testset "Dielectric" begin
 
-# Filling
-ε1 = 𝜀*(2.0+3im)
-μ1 = 𝜇*1.0
+    f = 1e7
 
-c2 = 1/sqrt(ε2*μ2)
-c1 = 1/sqrt(ε1*μ1)
+    # Embedding
+    μ2 = 𝜇*1.0
+    ε2 = 𝜀*1.0
 
-k2 = 2π * f / c2
-k1 = 2π * f / c1
+    # Filling
+    ε1 = 𝜀*(2.0+3im)
+    μ1 = 𝜇*1.0
 
-ω = 2*π*f
+    c2 = 1/sqrt(ε2*μ2)
+    c1 = 1/sqrt(ε1*μ1)
 
-η2 = sqrt(μ2/ε2)
-η1 = sqrt(μ1/ε1)
+    k2 = 2π * f / c2
+    k1 = 2π * f / c1
 
-𝓣k2 = Maxwell3D.singlelayer(wavenumber=k2, alpha=-im*μ2*ω, beta=1/(-im*ε2*ω))
-𝓣k1 = Maxwell3D.singlelayer(wavenumber=k1, alpha=-im*μ1*ω, beta=1/(-im*ε1*ω))
+    ω = 2*π*f
 
-𝓚k2 = Maxwell3D.doublelayer(wavenumber=k2)
-𝓚k1 = Maxwell3D.doublelayer(wavenumber=k1)
+    η2 = sqrt(μ2/ε2)
+    η1 = sqrt(μ1/ε1)
 
-𝐸 = Maxwell3D.planewave(; direction=ẑ, polarization=x̂, wavenumber=k2)
+    # MoM solution via PMCHWT
+    𝓣k2 = Maxwell3D.singlelayer(wavenumber=k2, alpha=-im*μ2*ω, beta=1/(-im*ε2*ω))
+    𝓣k1 = Maxwell3D.singlelayer(wavenumber=k1, alpha=-im*μ1*ω, beta=1/(-im*ε1*ω))
 
-𝒆 = (n × 𝐸) × n
-H = (-1/(im*μ2*ω))*curl(𝐸)
-𝒉 = (n × H) × n
-nx𝒉 = (n × H)
+    𝓚k2 = Maxwell3D.doublelayer(wavenumber=k2)
+    𝓚k1 = Maxwell3D.doublelayer(wavenumber=k1)
 
-Tk2 = Matrix(assemble(𝓣k2, RT, RT))
-Tk1 = Matrix(assemble(𝓣k1, RT, RT))
+    𝐸 = Maxwell3D.planewave(; direction=ẑ, polarization=x̂, wavenumber=k2)
 
-Kk2_rt = Matrix(assemble(𝓚k2, RT, RT))
-Kk1_rt = Matrix(assemble(𝓚k1, RT, RT))
+    𝒆 = (n × 𝐸) × n
+    H = (-1/(im*μ2*ω))*curl(𝐸)
+    𝒉 = (n × H) × n
+    nx𝒉 = (n × H)
 
-e = Vector(assemble(𝒆, RT))
-h = Vector(assemble(𝒉, RT))
+    Tk2 = Matrix(assemble(𝓣k2, RT, RT))
+    Tk1 = Matrix(assemble(𝓣k1, RT, RT))
 
-Z_PMCHWT = 
-[
--(Kk2_rt + Kk1_rt)  (Tk2 + Tk1) ./ η2;
-((1/η2)^2 .* Tk2 + (1/η1)^2 .* Tk1) .* η2  (+Kk2_rt + Kk1_rt)
-]
+    Kk2_rt = Matrix(assemble(𝓚k2, RT, RT))
+    Kk1_rt = Matrix(assemble(𝓚k1, RT, RT))
 
-eh = [-e; -h .* η2]
+    e = Vector(assemble(𝒆, RT))
+    h = Vector(assemble(𝒉, RT))
 
-mj_PMCHWT = Z_PMCHWT\eh
+    Z_PMCHWT = 
+    [
+    -(Kk2_rt + Kk1_rt)  (Tk2 + Tk1) ./ η2;
+    ((1/η2)^2 .* Tk2 + (1/η1)^2 .* Tk1) .* η2  (+Kk2_rt + Kk1_rt)
+    ]
 
-m = mj_PMCHWT[1:numfunctions(RT)]
-j = mj_PMCHWT[(1+numfunctions(RT)):end] ./ η2
+    eh = [-e; -h .* η2]
 
-function efield(𝓣, j, X_j, 𝓚, m, X_m, pts)
-    return potential(MWSingleLayerField3D(𝓣), pts, j, X_j) .+ 
-    potential(BEAST.MWDoubleLayerField3D(𝓚), pts, m, X_m)
-end
+    mj_PMCHWT = Z_PMCHWT\eh
 
-function hfield(𝓣, m, X_m, 𝓚, j, X_j , pts)
-    return potential(MWSingleLayerField3D(𝓣), pts, m, X_m) .+ 
-    potential(BEAST.MWDoubleLayerField3D(𝓚), pts, j, X_j)
-end
+    m = mj_PMCHWT[1:numfunctions(RT)]
+    j = mj_PMCHWT[(1+numfunctions(RT)):end] ./ η2
 
-function efarfield(𝓣, j, X_j, 𝓚, m, X_m, pts)
-    return potential(MWFarField3D(𝓣), pts, j, X_j) .+
-    potential(BEAST.MWDoubleLayerFarField3D(𝓚), pts, m, X_m)
-end
-
-points_cartNF_inside, ~ = getDefaultPoints(0.5)
-
-EF₂MoM = efield(𝓣k2, j, RT, 𝓚k2, -m, RT, points_cartNF)
-EF₁MoM = efield(𝓣k1, -j, RT, 𝓚k1, +m, RT, points_cartNF_inside)
-
-sp = DielectricSphere(; radius=spRadius, filling=Medium(ε1, μ1))
-ex = planeWave(sp; frequency=f)
-
-EF₂ = scatteredfield(sp, ex, ElectricField(points_cartNF))
-EF₁ = scatteredfield(sp, ex, ElectricField(points_cartNF_inside))
-
-diff_EF₂ = norm.(EF₂ - EF₂MoM) ./ maximum(norm.(EF₂))  # worst case error
-diff_EF₁ = norm.(EF₁ - EF₁MoM) ./ maximum(norm.(EF₁))  # worst case error
-
-@test maximum(20 * log10.(abs.(diff_EF₂))) < -25 # dB 
-@test maximum(20 * log10.(abs.(diff_EF₁))) < -25 # dB 
-
-##
-HF₂MoM = hfield(𝓣k2, +(1/η2)^2 .* m, RT, 𝓚k2, +j, RT, points_cartNF)
-HF₁MoM = hfield(𝓣k1, -(1/η1)^2 .* m, RT, 𝓚k1, -j, RT, points_cartNF_inside)
-
-HF₂ = scatteredfield(sp, ex, MagneticField(points_cartNF))
-HF₁ = scatteredfield(sp, ex, MagneticField(points_cartNF_inside))
-
-
-diff_HF₂ = norm.(HF₂ - HF₂MoM) ./ maximum(norm.(HF₂))  # worst case error
-diff_HF₁ = norm.(HF₁ - HF₁MoM) ./ maximum(norm.(HF₁))  # worst case error
-
-@test maximum(20 * log10.(abs.(diff_HF₂))) < -25 # dB 
-@test maximum(20 * log10.(abs.(diff_HF₁))) < -25 # dB 
-
-##
-FF_MoM = -im * f / (2 * c2) * efarfield(𝓣k2, j, RT, 𝓚k2, -m, RT, points_cartFF)
-FF = scatteredfield(sp, ex, FarField(points_cartFF))
-
-diff_FF = norm.(FF - FF_MoM) ./ maximum(norm.(FF))  # worst case error
-@test maximum(20 * log10.(abs.(diff_FF))) < -25 # dB
-
-##
-
-
-function get_spherical_coordinates(fld, pts, ϑ, ϕ)
-    retfld = copy(fld)
-    for i in eachindex(ϑ)
-        for j in eachindex(ϕ)
-            retfld[i, j] = SphericalScattering.convertCartesian2Spherical(fld[i,j], pts[i, j])
-        end
+    function efield(𝓣, j, X_j, 𝓚, m, X_m, pts)
+        return potential(MWSingleLayerField3D(𝓣), pts, j, X_j) .+ 
+        potential(BEAST.MWDoubleLayerField3D(𝓚), pts, m, X_m)
     end
 
-    return retfld
+    function hfield(𝓣, m, X_m, 𝓚, j, X_j , pts)
+        return potential(MWSingleLayerField3D(𝓣), pts, m, X_m) .+ 
+        potential(BEAST.MWDoubleLayerField3D(𝓚), pts, j, X_j)
+    end
+
+    function efarfield(𝓣, j, X_j, 𝓚, m, X_m, pts)
+        return potential(MWFarField3D(𝓣), pts, j, X_j) .+
+        potential(BEAST.MWDoubleLayerFarField3D(𝓚), pts, m, X_m)
+    end
+
+    points_cartNF_inside, ~ = getDefaultPoints(0.5)
+
+    EF₂MoM = efield(𝓣k2, j, RT, 𝓚k2, -m, RT, points_cartNF)
+    EF₁MoM = efield(𝓣k1, -j, RT, 𝓚k1, +m, RT, points_cartNF_inside)
+
+    sp = DielectricSphere(; radius=spRadius, filling=Medium(ε1, μ1))
+    ex = planeWave(sp; frequency=f)
+
+    # E-Field
+    EF₂ = scatteredfield(sp, ex, ElectricField(points_cartNF))
+    EF₁ = scatteredfield(sp, ex, ElectricField(points_cartNF_inside))
+
+    diff_EF₂ = norm.(EF₂ - EF₂MoM) ./ maximum(norm.(EF₂))  # worst case error
+    diff_EF₁ = norm.(EF₁ - EF₁MoM) ./ maximum(norm.(EF₁))  # worst case error
+
+    @test maximum(20 * log10.(abs.(diff_EF₂))) < -25 # dB 
+    @test maximum(20 * log10.(abs.(diff_EF₁))) < -25 # dB 
+
+    # H-Field
+    HF₂MoM = hfield(𝓣k2, +(1/η2)^2 .* m, RT, 𝓚k2, +j, RT, points_cartNF)
+    HF₁MoM = hfield(𝓣k1, -(1/η1)^2 .* m, RT, 𝓚k1, -j, RT, points_cartNF_inside)
+
+    HF₂ = scatteredfield(sp, ex, MagneticField(points_cartNF))
+    HF₁ = scatteredfield(sp, ex, MagneticField(points_cartNF_inside))
+
+    diff_HF₂ = norm.(HF₂ - HF₂MoM) ./ maximum(norm.(HF₂))  # worst case error
+    diff_HF₁ = norm.(HF₁ - HF₁MoM) ./ maximum(norm.(HF₁))  # worst case error
+
+    @test maximum(20 * log10.(abs.(diff_HF₂))) < -25 # dB 
+    @test maximum(20 * log10.(abs.(diff_HF₁))) < -25 # dB 
+
+    # Far-Field
+    FF_MoM = -im * f / (2 * c2) * efarfield(𝓣k2, j, RT, 𝓚k2, -m, RT, points_cartFF)
+    FF = scatteredfield(sp, ex, FarField(points_cartFF))
+
+    diff_FF = norm.(FF - FF_MoM) ./ maximum(norm.(FF))  # worst case error
+    @test maximum(20 * log10.(abs.(diff_FF))) < -25 # dB
 end
-
-sEF₂ = get_spherical_coordinates(EF₂, points_cartNF, ϑ, ϕ)
-sEF₂M = get_spherical_coordinates(EF₂MoM, points_cartNF, ϑ, ϕ)
-
-##
-sHF₂ = get_spherical_coordinates(HF₂, points_cartNF, ϑ, ϕ)
-sHF₂M = get_spherical_coordinates(HF₂MoM, points_cartNF, ϑ, ϕ)
-sHF₁ = get_spherical_coordinates(EF₁, points_cartNF_inside, ϑ, ϕ)
-sHF₁M = get_spherical_coordinates(EF₁MoM, points_cartNF_inside, ϑ, ϕ)
-
-##
-sFF = get_spherical_coordinates(FF, points_cartFF, ϑ, ϕ)
-sFFM = get_spherical_coordinates(FF_MoM, points_cartFF, ϑ, ϕ)

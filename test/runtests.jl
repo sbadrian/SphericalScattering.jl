@@ -45,7 +45,7 @@ c = 1 / sqrt(𝜇 * 𝜀)
 points_cartFF, points_sphFF = getDefaultPoints(1.0)
 points_cartNF, points_sphNF = getDefaultPoints(5.0)
 
-include("planeWave_dielectric.jl")
+#include("planeWave_dielectric.jl")
 include("planeWave.jl")
 if false==true
 # ----- testsets
