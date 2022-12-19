@@ -29,7 +29,7 @@ end
 
 
 """
-    scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::ElectricField; parameter::Parameter=Parameter())
+    scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::Field; parameter::Parameter=Parameter())
 
 Compute the electric field scattered by a PEC or dielectric sphere, for an incident plane wave
 travelling in +z-direction with E-field polarization in x-direction.
@@ -77,25 +77,20 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
             n += 1
 
             coeffs = scatterCoeff(sphere, excitation, n)        
-
+            Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, quantity, r, plm, cosϑ, sinϑ, n)
 
             if quantity isa FarField
                 k = wavenumber(excitation)
-                Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, plm, cosϑ, sinϑ, n)
                 aₙ = coeffs[1]
                 bₙ = coeffs[2]
             else
                 k = wavenumber(sphere, excitation, r)
-
                 kr = k*r
-                s = sqrt(π / 2 / kr)
     
                 if r >= sphere.radius
-                    Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
                     aₙ = coeffs[1]
                     bₙ = coeffs[2]
                 else
-                    Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion_dielectric_inner(sphere, excitation, plm, kr, s, cosϑ, sinϑ, n)
                     aₙ = coeffs[3]
                     bₙ = coeffs[4]
                 end
@@ -137,7 +132,8 @@ end
 """
     scatterCoeff(sphere::PECSphere, excitation::PlaneWave, n::Int, ka)
 
-Compute scattering coefficients for a plane wave travelling in +z-direction with polarization in x-direction.
+Compute scattering coefficients for a plane wave travelling in +z-direction 
+with polarization in x-direction.
 """
 function scatterCoeff(sphere::PECSphere, excitation::PlaneWave, n::Int)
 
@@ -223,19 +219,33 @@ end
 
 
 """
-    expansion(sphere::Sphere, excitation::PlaneWave, plm, kr, s, cosϑ, p, n::Int) 
+    expansion(sphere::Sphere, excitation::PlaneWave, quantity::Field, r, plm, cosϑ, sinϑ, n::Int) 
 
 Compute functional dependencies of the Mie series for a plane wave
 travelling in +z-direction with polarization in x-direction.
 """
-function expansion(sphere::Sphere, excitation::PlaneWave, plm, kr, s, cosϑ, sinϑ, n::Int)
+function expansion(sphere::Sphere, excitation::PlaneWave, quantity::Field, r, plm, cosϑ, sinϑ, n::Int)
 
     T = typeof(excitation.frequency)
 
-    Ĥ  = kr * s * hankelh2(n + T(0.5), kr)     # Riccati-Hankel function
-    Ĥ2 = kr * s * hankelh2(n - T(0.5), kr)
+    if quantity isa FarField
+        B = T(1.0)
+        dB = T(1.0)
+    else
+        k = wavenumber(sphere, excitation, r)
+        kr = k*r
+        s = sqrt(π / 2 / kr)
 
-    dĤ = Ĥ2 - n / kr * Ĥ          # derivative of Riccati-Hankel function
+        if r >= sphere.radius
+            B  = kr * s * hankelh2(n + T(0.5), kr)     # Riccati-Hankel function
+            B2 = kr * s * hankelh2(n - T(0.5), kr)
+        else
+            B  = kr * s * besselj(n + T(0.5), kr)     # Riccati-Hankel function
+            B2 = kr * s * besselj(n - T(0.5), kr)
+        end
+
+        dB = B2 - n / kr * B          # derivative of Riccati-Hankel function
+    end
 
     p = plm[n]
 
@@ -246,140 +256,38 @@ function expansion(sphere::Sphere, excitation::PlaneWave, plm, kr, s, cosϑ, sin
             dp = (n * cosϑ * plm[n] - (n + 1) * plm[n - 1]) / sqrt(T(1.0) - cosϑ * cosϑ)
         end
 
-        Mn_ϑ = Ĥ * p / sinϑ
-        Mn_ϕ = Ĥ * dp
+        Mn_ϑ = B * p / sinϑ
+        Mn_ϕ = B * dp
 
-        Nn_ϑ = dĤ * dp
-        Nn_ϕ = dĤ * p / sinϑ
+        Nn_ϑ = dB * dp
+        Nn_ϕ = dB * p / sinϑ
 
     elseif cosϑ > 0.999999
         aux = (n + T(1.0)) * n / T(2.0)
 
-        Mn_ϑ = -Ĥ * aux
+        Mn_ϑ = -B * aux
         Mn_ϕ = Mn_ϑ
 
-        Nn_ϑ = -dĤ * aux
+        Nn_ϑ = -dB * aux
         Nn_ϕ = Nn_ϑ
 
     elseif cosϑ < -0.999999
         aux = (n + T(1.0)) * n / T(2.0) * T(-1.0)^n
 
-        Mn_ϑ = Ĥ * aux
+        Mn_ϑ = B * aux
         Mn_ϕ = -Mn_ϑ
 
-        Nn_ϑ = -dĤ * aux
+        Nn_ϑ = -dB * aux
         Nn_ϕ = -Nn_ϑ
     end
 
-    Nn_r = n * (n + 1) * Ĥ * p
-    Nn_ϑ = im * Nn_ϑ
-    Nn_ϕ = im * Nn_ϕ
-
-    return Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ
-end
-
-
-
-"""
-    expansion(sphere::Sphere, excitation::PlaneWave, plm, cosϑ, sinϑ, n::Int)
-
-Compute far-field functional dependencies of the Mie series for a plane wave travelling in -z direction with polarization in x-direction.
-"""
-function expansion(sphere::Sphere, excitation::PlaneWave, plm, cosϑ, sinϑ, n::Int)
-
-    T = typeof(excitation.frequency)
-
-    p = plm[n]
-
-    if abs(cosϑ) < 0.999999
-        if n == 1 # derivative of associated Legendre Polynomial
-            dp = cosϑ * plm[1] / sqrt(T(1.0) - cosϑ * cosϑ)
-        else
-            dp = (n * cosϑ * plm[n] - (n + 1) * plm[n - 1]) / sqrt(T(1.0) - cosϑ * cosϑ)
-        end
-
-        Mn_ϑ = p / sinϑ
-        Mn_ϕ = dp
-
-        Nn_ϑ = dp
-        Nn_ϕ = p / sinϑ
-
-    elseif cosϑ > 0.999999
-        aux = (n + T(1.0)) * n / T(2.0)
-
-        Mn_ϑ = -aux
-        Mn_ϕ = Mn_ϑ
-
-        Nn_ϑ = -aux
-        Nn_ϕ = Nn_ϑ
-
-    elseif cosϑ < -0.999999
-        aux = (n + T(1.0)) * n / T(2.0) * T(-1.0)^n
-
-        Mn_ϑ = aux
-        Mn_ϕ = -Mn_ϑ
-
-        Nn_ϑ = -aux
-        Nn_ϕ = -Nn_ϑ
+    if !(quantity isa FarField)
+        Nn_r = n * (n + 1) * B * p
+        Nn_ϑ = im * Nn_ϑ
+        Nn_ϕ = im * Nn_ϕ
+    else
+        Nn_r = T(0)
     end
-
-    return Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ
-end
-
-
-
-"""
-    expansion_dielectric_inner(sphere::Sphere, excitation::PlaneWave, plm, kr, s, cosϑ, p, n::Int) 
-
-Compute functional dependencies of the Mie series for a plane wave
-travelling in +z-direction with polarization in x-direction.
-"""
-function expansion_dielectric_inner(sphere::Sphere, excitation::PlaneWave, plm, kr, s, cosϑ, sinϑ, n::Int)
-
-    T = typeof(excitation.frequency)
-
-    Ĵ  = kr * s * besselj(n + T(0.5), kr)     # Riccati-Hankel function
-    Ĵ2 = kr * s * besselj(n - T(0.5), kr)
-
-    dĴ = Ĵ2 - n / kr * Ĵ          # derivative of Riccati-Hankel function
-
-    p = plm[n]
-
-    if abs(cosϑ) < 0.999999
-        if n == 1 # derivative of associated Legendre Polynomial
-            dp = cosϑ * plm[1] / sqrt(T(1.0) - cosϑ * cosϑ)
-        else
-            dp = (n * cosϑ * plm[n] - (n + 1) * plm[n - 1]) / sqrt(T(1.0) - cosϑ * cosϑ)
-        end
-
-        Mn_ϑ = Ĵ * p / sinϑ
-        Mn_ϕ = Ĵ * dp
-
-        Nn_ϑ = dĴ * dp
-        Nn_ϕ = dĴ * p / sinϑ
-
-    elseif cosϑ > 0.999999
-        aux = (n + T(1.0)) * n / T(2.0)
-
-        Mn_ϑ = -Ĵ * aux
-        Mn_ϕ = Mn_ϑ
-
-        Nn_ϑ = -dĴ * aux
-        Nn_ϕ = Nn_ϑ
-
-    elseif cosϑ < -0.999999
-        aux = (n + T(1.0)) * n / T(2.0) * T(-1.0)^n
-
-        Mn_ϑ = Ĵ * aux
-        Mn_ϕ = -Mn_ϑ
-
-        Nn_ϑ = -dĴ * aux
-        Nn_ϕ = -Nn_ϑ
-    end
-
-    Nn_r = n * (n + 1) * Ĵ * p
-    Nn_ϑ = im * Nn_ϑ
-    Nn_ϕ = im * Nn_ϕ
 
     return Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ
 end
