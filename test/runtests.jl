@@ -34,7 +34,7 @@ BEAST.cross(::BEAST.NormalVector, p::Excitation) = CrossTraceMW(p)
 # ----- variables used in all tests
 spRadius = 1.0 # radius of sphere
 
-Γ  = meshsphere(spRadius, 0.1)
+Γ  = meshsphere(spRadius, 0.4)
 RT = raviartthomas(Γ)
 
 𝜇 = SphericalScattering.μ0
@@ -43,7 +43,7 @@ RT = raviartthomas(Γ)
 c = 1 / sqrt(𝜇 * 𝜀)
 
 points_cartFF, points_sphFF = getDefaultPoints(1.0)
-points_cartNF, points_sphNF = getDefaultPoints(500.0)
+points_cartNF, points_sphNF = getDefaultPoints(5.0)
 
 include("planeWave_dielectric.jl")
 

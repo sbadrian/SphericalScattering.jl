@@ -84,8 +84,8 @@ EF₁ = scatteredfield(sp, ex, ElectricField(points_cartNF_inside))
 diff_EF₂ = norm.(EF₂ - EF₂MoM) ./ maximum(norm.(EF₂))  # worst case error
 diff_EF₁ = norm.(EF₁ - EF₁MoM) ./ maximum(norm.(EF₁))  # worst case error
 
-@test maximum(20 * log10.(abs.(diff_EF₂))) < -27 # dB 
-@test maximum(20 * log10.(abs.(diff_EF₁))) < -27 # dB 
+@test maximum(20 * log10.(abs.(diff_EF₂))) < -25 # dB 
+@test maximum(20 * log10.(abs.(diff_EF₁))) < -25 # dB 
 
 ##
 HF₂MoM = hfield(𝓣k2, +(1/η2)^2 .* m, RT, 𝓚k2, +j, RT, points_cartNF)
@@ -101,10 +101,19 @@ HF₁ = scatteredfield(sp, ex, MagneticField(points_cartNF_inside))
 diff_HF₂ = norm.(HF₂ - HF₂MoM) ./ maximum(norm.(HF₂))  # worst case error
 diff_HF₁ = norm.(HF₁ - HF₁MoM) ./ maximum(norm.(HF₁))  # worst case error
 
-@test maximum(20 * log10.(abs.(diff_HF₂))) < -27 # dB 
-@test maximum(20 * log10.(abs.(diff_HF₁))) < -27 # dB 
+@test maximum(20 * log10.(abs.(diff_HF₂))) < -25 # dB 
+@test maximum(20 * log10.(abs.(diff_HF₁))) < -25 # dB 
 
 ##
+FF_MoM = -im * f / (2 * c2) * efarfield(𝓣k2, j, RT, 𝓚k2, -m, RT, points_cartFF)
+FF = scatteredfield(sp, ex, FarField(points_cartFF))
+
+diff_FF = norm.(FF - FF_MoM) ./ maximum(norm.(FF))  # worst case error
+@test maximum(20 * log10.(abs.(diff_FF))) < -25 # dB
+
+#=
+
+
 function get_spherical_coordinates(fld, pts, ϑ, ϕ)
     retfld = copy(fld)
     for i in eachindex(ϑ)
@@ -124,3 +133,4 @@ sHF₂ = get_spherical_coordinates(HF₂, points_cartNF, ϑ, ϕ)
 sHF₂M = get_spherical_coordinates(HF₂MoM, points_cartNF, ϑ, ϕ)
 sHF₁ = get_spherical_coordinates(EF₁, points_cartNF_inside, ϑ, ϕ)
 sHF₁M = get_spherical_coordinates(EF₁MoM, points_cartNF_inside, ϑ, ϕ)
+=#

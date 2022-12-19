@@ -373,14 +373,14 @@ end
 
 
 """
-    scatteredfield(sphere::PECSphere, excitation::PlaneWave, point, quantity::FarField; parameter::Parameter=Parameter())
+    scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::FarField; parameter::Parameter=Parameter())
 
-Compute the (electric) far-field scattered by a PEC sphere, for an incident plane wave
+Compute the (electric) far-field scattered by a PEC or dielectric sphere, for an incident plane wave
 travelling in +z-direction with E-field polarization in x-direction.
 
 The point and the returned field are in Cartesian coordinates.
 """
-function scatteredfield(sphere::PECSphere, excitation::PlaneWave, point, quantity::FarField; parameter::Parameter=Parameter())
+function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::FarField; parameter::Parameter=Parameter())
 
     point_sph = cart2sph(point) # [r ϑ φ]
 
@@ -408,11 +408,16 @@ function scatteredfield(sphere::PECSphere, excitation::PlaneWave, point, quantit
     δE = T(Inf)
     n = 0
 
-    try
+    #try
         while δE > eps || n < 10
             n += 1
 
-            aₙ, bₙ = scatterCoeff(sphere, excitation, n, ka)
+            if sphere isa PECSphere
+                aₙ, bₙ = scatterCoeff(sphere, excitation, n, ka)
+            else
+                aₙ, bₙ, ~, ~ = scatterCoeff(sphere, excitation, n)
+            end
+
             Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, ka, plm, cosϑ, sinϑ, n)
 
             # See Jin, (7.4.44)-(7.4.45)
@@ -427,9 +432,9 @@ function scatteredfield(sphere::PECSphere, excitation::PlaneWave, point, quantit
 
             n > 1 && push!(plm, (T(2.0) * n + 1) * cosϑ * plm[n] / n - (n + 1) * plm[n - 1] / n) # recurrence relationship associated Legendre polynomial
         end
-    catch
+    #catch
 
-    end
+    #end
 
     return convertSpherical2Cartesian(E₀ .* SVector{3,Complex{T}}(0.0, Eϑ, Eϕ), point_sph)
 end
@@ -579,11 +584,11 @@ end
 
 
 """
-    expansion(sphere::PECSphere, excitation::PlaneWave, ka, plm, cosϑ, sinϑ, n::Int)
+    expansion(sphere::Sphere, excitation::PlaneWave, ka, plm, cosϑ, sinϑ, n::Int)
 
 Compute far-field functional dependencies of the Mie series for a plane wave travelling in -z direction with polarization in x-direction.
 """
-function expansion(sphere::PECSphere, excitation::PlaneWave, ka, plm, cosϑ, sinϑ, n::Int)
+function expansion(sphere::Sphere, excitation::PlaneWave, ka, plm, cosϑ, sinϑ, n::Int)
 
     T = typeof(excitation.frequency)
 
