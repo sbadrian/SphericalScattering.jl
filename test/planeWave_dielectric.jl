@@ -6,7 +6,7 @@ f = 1e7
 ε2 = 𝜀
 
 # Filling
-ε1 = 𝜀*2.0
+ε1 = 𝜀*(2.0+3im)
 μ1 = 𝜇*1.0
 
 c2 = 1/sqrt(ε2*μ2)
@@ -75,8 +75,8 @@ points_cartNF_inside, ~ = getDefaultPoints(0.5)
 EF₂MoM = efield(𝓣k2, j, RT, 𝓚k2, -m, RT, points_cartNF)
 EF₁MoM = efield(𝓣k1, -j, RT, 𝓚k1, +m, RT, points_cartNF_inside)
 
-ex = planeWave(; wavenumber=k2, frequency=f)
 sp = DielectricSphere(; radius=spRadius, filling=Medium(ε1, μ1))
+ex = planeWave(sp; frequency=f)
 
 EF₂ = scatteredfield(sp, ex, ElectricField(points_cartNF))
 EF₁ = scatteredfield(sp, ex, ElectricField(points_cartNF_inside))
@@ -90,9 +90,6 @@ diff_EF₁ = norm.(EF₁ - EF₁MoM) ./ maximum(norm.(EF₁))  # worst case erro
 ##
 HF₂MoM = hfield(𝓣k2, +(1/η2)^2 .* m, RT, 𝓚k2, +j, RT, points_cartNF)
 HF₁MoM = hfield(𝓣k1, -(1/η1)^2 .* m, RT, 𝓚k1, -j, RT, points_cartNF_inside)
-
-ex = planeWave(; wavenumber=k2, frequency=f)
-sp = DielectricSphere(; radius=spRadius, filling=Medium(ε1, μ1))
 
 HF₂ = scatteredfield(sp, ex, MagneticField(points_cartNF))
 HF₁ = scatteredfield(sp, ex, MagneticField(points_cartNF_inside))
@@ -111,7 +108,7 @@ FF = scatteredfield(sp, ex, FarField(points_cartFF))
 diff_FF = norm.(FF - FF_MoM) ./ maximum(norm.(FF))  # worst case error
 @test maximum(20 * log10.(abs.(diff_FF))) < -25 # dB
 
-#=
+##
 
 
 function get_spherical_coordinates(fld, pts, ϑ, ϕ)
@@ -133,4 +130,7 @@ sHF₂ = get_spherical_coordinates(HF₂, points_cartNF, ϑ, ϕ)
 sHF₂M = get_spherical_coordinates(HF₂MoM, points_cartNF, ϑ, ϕ)
 sHF₁ = get_spherical_coordinates(EF₁, points_cartNF_inside, ϑ, ϕ)
 sHF₁M = get_spherical_coordinates(EF₁MoM, points_cartNF_inside, ϑ, ϕ)
-=#
+
+##
+sFF = get_spherical_coordinates(FF, points_cartFF, ϑ, ϕ)
+sFFM = get_spherical_coordinates(FF_MoM, points_cartFF, ϑ, ϕ)

@@ -4,7 +4,7 @@
     f = 1e8
     κ = 2π * f / c   # Wavenumber
 
-    ex = planeWave(; wavenumber=κ)
+    ex = planeWave(; frequency=f)
 
 
     @testset "Incident fields" begin
