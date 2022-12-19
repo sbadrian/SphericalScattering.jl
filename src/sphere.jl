@@ -8,6 +8,15 @@ struct Medium{C}
     μ::C
 end
 
+function Medium(ε::T1, μ::T2) where {T1, T2}
+    T = promote_type(T1, T2)
+    return Medium(T(ε), T(μ))
+end
+
+function Medium{T}(md) where {T}
+    return Medium(T(md.ε), T(md.μ))
+end
+
 abstract type Sphere end
 
 
@@ -15,6 +24,12 @@ struct DielectricSphere{C,R} <: Sphere
     radius::R
     embedding::Medium{C}
     filling::Medium{C}
+end
+
+function DielectricSphere(r::R, embedding::Medium{C1}, filling::Medium{C2}) where {R, C1, C2}
+    C = promote_type(C1, C2)
+
+    DielectricSphere(r, Medium{C}(embedding), Medium{C}(filling))
 end
 
 function wavenumber(sp::Sphere, ex::Excitation, r)
