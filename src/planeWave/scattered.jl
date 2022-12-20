@@ -76,7 +76,7 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
         while δF > eps || n < 10
             n += 1
 
-            coeffs = scatterCoeff(sphere, excitation, n)        
+            coeffs = scatterCoeff(sphere, excitation, n)
             Nn_r, Nn_ϑ, Nn_ϕ, Mn_ϑ, Mn_ϕ = expansion(sphere, excitation, quantity, r, plm, cosϑ, sinϑ, n)
 
             if quantity isa FarField
@@ -85,8 +85,8 @@ function scatteredfield(sphere::Sphere, excitation::PlaneWave, point, quantity::
                 bₙ = coeffs[2]
             else
                 k = wavenumber(sphere, excitation, r)
-                kr = k*r
-    
+                kr = k * r
+
                 if r >= sphere.radius
                     aₙ = coeffs[1]
                     bₙ = coeffs[2]
@@ -141,7 +141,7 @@ function scatterCoeff(sphere::PECSphere, excitation::PlaneWave, n::Int)
 
     k = wavenumber(excitation)
 
-    ka = k*sphere.radius
+    ka = k * sphere.radius
 
     s = sqrt(π / 2 / ka)
 
@@ -173,8 +173,8 @@ function scatterCoeff(sphere::DielectricSphere, excitation::PlaneWave, n::Int)
     ε1 = sphere.filling.ε
     μ1 = sphere.filling.μ
 
-    c2 = 1/sqrt(ε2*μ2)
-    c1 = 1/sqrt(ε1*μ1)
+    c2 = 1 / sqrt(ε2 * μ2)
+    c1 = 1 / sqrt(ε1 * μ1)
 
     k2 = 2π * f / c2
     k1 = 2π * f / c1
@@ -182,7 +182,7 @@ function scatterCoeff(sphere::DielectricSphere, excitation::PlaneWave, n::Int)
     εᵣ = ε1 / ε2
     μᵣ = μ1 / μ2
 
-    k₂a = k2*sphere.radius
+    k₂a = k2 * sphere.radius
     s₂ = sqrt(π / 2 / k₂a)
 
     Ĵ₂  = k₂a * s₂ * besselj(n + T(0.5), k₂a)   # Riccati-Bessel function
@@ -194,10 +194,10 @@ function scatterCoeff(sphere::DielectricSphere, excitation::PlaneWave, n::Int)
     dĴ₂ = (Ĵ₂2 - n / k₂a * Ĵ₂)    # derivative Riccati-Bessel function
     dĤ₂ = (Ĥ₂2 - n / k₂a * Ĥ₂)    # derivative Riccati-Hankel function
 
-    k₁a = k1*sphere.radius
+    k₁a = k1 * sphere.radius
     s₁ = sqrt(π / 2 / k₁a)
 
-    Ĵ₁  = k₁a * s₁ * besselj(n + T(0.5), k₁a)   # Riccati-Bessel function
+    Ĵ₁ = k₁a * s₁ * besselj(n + T(0.5), k₁a)   # Riccati-Bessel function
     #Ĥ₁  = k₁a * s₁ * hankelh2(n + T(0.5), k₁a)  # Riccati-Hankel function
     Ĵ₁2 = k₁a * s₁ * besselj(n - T(0.5), k₁a)   # for derivate needed
     #Ĥ₁2 = k₁a * s₁ * hankelh2(n - T(0.5), k₁a)  # for derivate needed
@@ -206,12 +206,12 @@ function scatterCoeff(sphere::DielectricSphere, excitation::PlaneWave, n::Int)
     dĴ₁ = (Ĵ₁2 - n / k₁a * Ĵ₁)    # derivative Riccati-Bessel function
     #dĤ₁ = (Ĥ₁2 - n / k₁a * Ĥ₁)    # derivative Riccati-Hankel function
 
-    pF = im^(-T(n)) * (2 * n + 1) / (n * (n + 1))  
+    pF = im^(-T(n)) * (2 * n + 1) / (n * (n + 1))
 
-    aₙ = pF * (√εᵣ*dĴ₂*Ĵ₁ - √μᵣ*Ĵ₂*dĴ₁) / (√μᵣ*Ĥ₂*dĴ₁ - √εᵣ*dĤ₂*Ĵ₁)     # Jin (7.4.65)
-    bₙ = pF * (√μᵣ*dĴ₂*Ĵ₁ - √εᵣ*Ĵ₂*dĴ₁) / (√εᵣ*Ĥ₂*dĴ₁ - √μᵣ*dĤ₂*Ĵ₁)     # Jin (7.4.66)
-    cₙ = pF * (im*√εᵣ*μᵣ) / (√μᵣ*Ĥ₂*dĴ₁ - √εᵣ*dĤ₂*Ĵ₁)      # Jin (7.4.66)
-    dₙ = pF * (im*√εᵣ*μᵣ) / (√εᵣ*Ĥ₂*dĴ₁ - √μᵣ*dĤ₂*Ĵ₁)      # Jin (7.4.66)
+    aₙ = pF * (√εᵣ * dĴ₂ * Ĵ₁ - √μᵣ * Ĵ₂ * dĴ₁) / (√μᵣ * Ĥ₂ * dĴ₁ - √εᵣ * dĤ₂ * Ĵ₁)     # Jin (7.4.65)
+    bₙ = pF * (√μᵣ * dĴ₂ * Ĵ₁ - √εᵣ * Ĵ₂ * dĴ₁) / (√εᵣ * Ĥ₂ * dĴ₁ - √μᵣ * dĤ₂ * Ĵ₁)     # Jin (7.4.66)
+    cₙ = pF * (im * √εᵣ * μᵣ) / (√μᵣ * Ĥ₂ * dĴ₁ - √εᵣ * dĤ₂ * Ĵ₁)      # Jin (7.4.66)
+    dₙ = pF * (im * √εᵣ * μᵣ) / (√εᵣ * Ĥ₂ * dĴ₁ - √μᵣ * dĤ₂ * Ĵ₁)      # Jin (7.4.66)
 
     return aₙ, bₙ, cₙ, dₙ
 end
@@ -233,7 +233,7 @@ function expansion(sphere::Sphere, excitation::PlaneWave, quantity::Field, r, pl
         dB = T(1.0)
     else
         k = wavenumber(sphere, excitation, r)
-        kr = k*r
+        kr = k * r
         s = sqrt(π / 2 / kr)
 
         if r >= sphere.radius

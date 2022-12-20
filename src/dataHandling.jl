@@ -20,7 +20,7 @@ end
 
 abstract type Excitation end
 
-wavenumber(ex::Excitation) = 2π * ex.frequency * sqrt(ex.embedding.ε*ex.embedding.μ)
+wavenumber(ex::Excitation) = 2π * ex.frequency * sqrt(ex.embedding.ε * ex.embedding.μ)
 
 #abstract type Parameter end
 

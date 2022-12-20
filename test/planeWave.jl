@@ -3,7 +3,7 @@
 
     f = 1e8
 
-    sp = PECSphere(; radius=spRadius, embedding=Medium(𝜀*3, 𝜇))
+    sp = PECSphere(; radius=spRadius, embedding=Medium(𝜀, 𝜇))
     ex = planeWave(sp; frequency=f)
 
 
@@ -19,12 +19,12 @@
     @testset "Scattered fields" begin
 
         # ----- BEAST solution
-        κ = 2π * f * sqrt(sp.embedding.μ * sp.embedding.ε)   # Wavenumber
+        κ = 2π * f / c   # Wavenumber
 
         𝐸 = Maxwell3D.planewave(; direction=ẑ, polarization=x̂, wavenumber=κ)
 
         𝑒 = n × 𝐸 × n
-        𝑇 = Maxwell3D.singlelayer(; wavenumber=κ, alpha=-im * sp.embedding.μ * (2π * f), beta=1 / (-im * sp.embedding.ε * (2π * f)))
+        𝑇 = Maxwell3D.singlelayer(; wavenumber=κ, alpha=-im * 𝜇 * (2π * f), beta=1 / (-im * 𝜀 * (2π * f)))
 
         e = -assemble(𝑒, RT)
         T = assemble(𝑇, RT, RT)
