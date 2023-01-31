@@ -71,6 +71,148 @@ function scatteredfield(
 
 end
 
+
+
+"""
+    scatteredfield(sphere::DielectricSphereThinLayerPotentialJump, excitation::UniformField, point, quantity::ElectricField; parameter::Parameter=Parameter())
+
+Compute the electric field scattered by a dielectric sphere with a thin coating,
+where the displacement field in the coating is only in radial direction.
+We assume an an incident uniform field with polarization in z-direction.
+
+The point and the returned field are in Cartesian coordinates.
+"""
+function scatteredfield(
+    sphere::DielectricSphereThinLayerPotentialJump,
+    excitation::UniformField,
+    point,
+    quantity::ElectricField;
+    parameter::Parameter=Parameter(),
+)
+
+    ẑ = SVector(0.0, 0.0, 1.0)
+    # Currently, we only support a constant field in z-direction
+    @assert excitation.direction == ẑ
+
+    point_sph = cart2sph(point)
+    θ = point_sph[2]
+
+    cosθ = dot(ẑ, point) / norm(point)
+
+    @assert cosθ ≈ cos(point_sph[2]) atol = 1e-6
+
+    r = norm(point)
+
+    E0 = excitation.amplitude
+
+    A, K = scatterCoeff(sphere, excitation)
+
+    if r > sphere.radius
+        E = SVector((-2 * A / r^3) * cosθ, (+A / r^3) * (-sin(θ)), 0.0)
+    else
+        E = SVector((-K * cosθ, K * sin(θ), 0.0))
+    end
+
+    return E
+end
+
+function scatteredfield(
+    sphere::DielectricSphereThinLayerPotentialJump,
+    excitation::UniformField,
+    point,
+    quantity::ScalarPotentialJump;
+    parameter::Parameter=Parameter(),
+)
+
+    ẑ = SVector(0.0, 0.0, 1.0)
+    # Currently, we only support a constant field in z-direction
+    @assert excitation.direction == ẑ
+
+    point_sph = cart2sph(point)
+    @show point_sph
+    θ = point_sph[2]
+
+    cosθ = dot(ẑ, point) / norm(point)
+    @show cosθ
+    @show cos(point_sph[2])
+    @assert cosθ ≈ cos(point_sph[2]) atol = 1e-6
+
+    ~, K = scatterCoeff(sphere, excitation)
+
+    return sphere.thickness * (sphere.filling.ε / sphere.thinlayer.ε) * K * cosθ
+
+end
+
+"""
+    scatteredfield(sphere::DielectricSphereThinLayerPotentialJump, excitation::UniformField, point, quantity::ScalarPotential; parameter::Parameter=Parameter())
+
+Compute the scalar potential scattered by a dielectric sphere with a thin coating,
+where the displacement field in the coating is only in radial direction.
+We assume an an incident uniform field with polarization in z-direction.
+
+The point and the returned field are in Cartesian coordinates.
+"""
+function scatteredfield(
+    sphere::DielectricSphereThinLayerPotentialJump,
+    excitation::UniformField,
+    point,
+    quantity::ScalarPotential;
+    parameter::Parameter=Parameter(),
+)
+
+    ẑ = SVector(0.0, 0.0, 1.0)
+    # Currently, we only support a constant field in z-direction
+    @assert excitation.direction == ẑ
+
+    cosθ = dot(ẑ, point) / norm(point)
+    r = norm(point)
+
+    R = sphere.radius
+
+    A, K = scatterCoeff(sphere, excitation)
+
+    if r > R
+        return (+A / r^2) * cosθ # Jones 1995, (C.1a)
+    else
+        return (-K * r * cosθ)
+    end
+end
+
+function scatterCoeff(sp::DielectricSphereThinLayerPotentialJump, ex::UniformField)
+    R = sp.radius
+    Δ = sp.thickness
+    εₘ = sp.thinlayer.ε
+    εₑ = sp.embedding.ε
+    εᵢ = sp.filling.ε
+
+    # We divide the second equation by
+    # εₑ to improve the conditioning
+    b = [R; 1.0] .* ex.amplitude
+
+    A = [
+        R^(-2)   R-Δ * (εᵢ / εₘ)
+        -2R^(-3)     εᵢ/εₑ
+    ]
+
+    Ainv = [
+        εᵢ/εₑ     -(R - Δ * (εᵢ / εₘ))
+        2R^(-3)     R^(-2)
+    ] ./ (εᵢ / εₑ * R^(-2) + (R - Δ * (εᵢ / εₘ)) * 2R^(-3))
+
+    if norm(A * Ainv - I) > 2e-6
+        println("Matrix inversion is unstable: ", norm(A * Ainv - I))
+        println("Condition number is: ", cond(A))
+        println("Alternative inversion leads to: ", norm(A * pinv(A) - I))
+    end
+    x = Ainv * b
+
+    if norm(A * x - b) / norm(b) > eps(eltype(R)) * 10
+        print("No stable solution possible: ", norm(A * x - b) / norm(b))
+    end
+
+    return x[1], x[2]
+end
+
 """
     scatteredfield(sphere::PECSphere, excitation::UniformField, point, quantity::ElectricField; parameter::Parameter=Parameter())
 
@@ -395,3 +537,4 @@ end
 
 fieldType(F::ElectricField) = SVector{3,Complex{eltype(F.locations[1])}}
 fieldType(F::ScalarPotential) = Complex{eltype(F.locations[1])}
+fieldType(F::ScalarPotentialJump) = Complex{eltype(F.locations[1])}

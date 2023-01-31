@@ -32,7 +32,7 @@ export PlaneWave
 export UniformField
 export ElectricRingCurrent, MagneticRingCurrent
 export FarField, ElectricField, MagneticField
-export ScalarPotential
+export ScalarPotential, ScalarPotentialJump
 export Medium, Parameter
 export μ0, ε0
 
@@ -42,6 +42,7 @@ export HertzianDipole, FitzgeraldDipole
 export planeWave
 export SphericalMode, SphericalModeTE, SphericalModeTM
 export PECSphere, DielectricSphere, LayeredSphere, LayeredSpherePEC
+export DielectricSphereThinLayerPotentialJump
 export field, scatteredfield
 
 
