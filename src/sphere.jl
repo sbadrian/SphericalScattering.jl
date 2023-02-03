@@ -50,7 +50,7 @@ DielectricSphere(; radius=error("missing argument `radius`"), embedding=Medium(�
 
 
 
-struct DielectricSphereThinLayerPotentialJump{R,C} <: Sphere
+struct DielectricSphereImpedanceLayer{R,C} <: Sphere
     radius::R
     thickness::R
     embedding::Medium{C}
@@ -58,18 +58,18 @@ struct DielectricSphereThinLayerPotentialJump{R,C} <: Sphere
     filling::Medium{C}
 end
 
-function DielectricSphereThinLayerPotentialJump(
+function DielectricSphereImpedanceLayer(
     r::R1, d::R2, embedding::Medium{C1}, thinlayer::Medium{C2}, filling::Medium{C3}
 ) where {R1,R2,C1,C2,C3}
 
     R = promote_type(R1, R2)
     C = promote_type(C1, C2, C3)
 
-    DielectricSphereThinLayerPotentialJump(R(r), R(d), Medium{C}(embedding), Medium{C}(thinlayer), Medium{C}(filling))
+    DielectricSphereImpedanceLayer(R(r), R(d), Medium{C}(embedding), Medium{C}(thinlayer), Medium{C}(filling))
 end
 
 """
-    DielectricSphereThinLayerPotentialJump(
+    DielectricSphereImpedanceLayer(
         radius      = error("missing argument `radius`"),
         thickness   = error("missing argument `thickness` of the coating"),
         embedding   = Medium(ε0, μ0),
@@ -77,20 +77,20 @@ end
         filling     = error("missing argument `filling`")
     )
 
-Constructor for the dielectric sphere with a thin dielectric layer.
+Constructor for the dielectric sphere with a thin impedance layer.
 For this model, it is assumed that the displacement field is only radial
 direction in the layer, which requires a small thickness and low conductivity.
 For details, see for example T. B. Jones, Ed., “Models for layered spherical particles,”
 in Electromechanics of Particles, Cambridge: Cambridge University Press, 1995, 
 pp. 227–235. doi: 10.1017/CBO9780511574498.012.
 """
-DielectricSphereThinLayerPotentialJump(;
+DielectricSphereImpedanceLayer(;
     radius=error("missing argument `radius`"),
     thickness=error("missing argument `thickness` of the coating"),
     embedding=Medium(ε0, μ0),
     thinlayer=error("missing argument `thinlayer`"),
     filling=error("missing argument `filling`"),
-) = DielectricSphereThinLayerPotentialJump(radius, thickness, embedding, thinlayer, filling)
+) = DielectricSphereImpedanceLayer(radius, thickness, embedding, thinlayer, filling)
 
 struct PECSphere{C,R} <: Sphere
     radius::R

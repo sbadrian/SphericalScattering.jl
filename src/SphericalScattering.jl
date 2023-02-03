@@ -42,7 +42,7 @@ export HertzianDipole, FitzgeraldDipole
 export planeWave
 export SphericalMode, SphericalModeTE, SphericalModeTM
 export PECSphere, DielectricSphere, LayeredSphere, LayeredSpherePEC
-export DielectricSphereThinLayerPotentialJump
+export DielectricSphereImpedanceLayer
 export field, scatteredfield
 
 

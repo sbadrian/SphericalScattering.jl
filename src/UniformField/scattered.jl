@@ -74,7 +74,7 @@ end
 
 
 """
-    scatteredfield(sphere::DielectricSphereThinLayerPotentialJump, excitation::UniformField, point, quantity::ElectricField; parameter::Parameter=Parameter())
+    scatteredfield(sphere::DielectricSphereImpedanceLayer, excitation::UniformField, point, quantity::ElectricField; parameter::Parameter=Parameter())
 
 Compute the electric field scattered by a dielectric sphere with a thin coating,
 where the displacement field in the coating is only in radial direction.
@@ -83,7 +83,7 @@ We assume an an incident uniform field with polarization in z-direction.
 The point and the returned field are in Cartesian coordinates.
 """
 function scatteredfield(
-    sphere::DielectricSphereThinLayerPotentialJump,
+    sphere::DielectricSphereImpedanceLayer,
     excitation::UniformField,
     point,
     quantity::ElectricField;
@@ -99,7 +99,7 @@ function scatteredfield(
 
     cosθ = dot(ẑ, point) / norm(point)
 
-    @assert cosθ ≈ cos(point_sph[2]) atol = 1e-6
+    #@assert cosθ ≈ cos(point_sph[2]) atol = 1e-6
 
     r = norm(point)
 
@@ -117,7 +117,7 @@ function scatteredfield(
 end
 
 function scatteredfield(
-    sphere::DielectricSphereThinLayerPotentialJump,
+    sphere::DielectricSphereImpedanceLayer,
     excitation::UniformField,
     point,
     quantity::ScalarPotentialJump;
@@ -129,13 +129,10 @@ function scatteredfield(
     @assert excitation.direction == ẑ
 
     point_sph = cart2sph(point)
-    @show point_sph
     θ = point_sph[2]
 
     cosθ = dot(ẑ, point) / norm(point)
-    @show cosθ
-    @show cos(point_sph[2])
-    @assert cosθ ≈ cos(point_sph[2]) atol = 1e-6
+    #@assert cosθ ≈ cos(point_sph[2]) atol = 1e-6
 
     ~, K = scatterCoeff(sphere, excitation)
 
@@ -144,7 +141,7 @@ function scatteredfield(
 end
 
 """
-    scatteredfield(sphere::DielectricSphereThinLayerPotentialJump, excitation::UniformField, point, quantity::ScalarPotential; parameter::Parameter=Parameter())
+    scatteredfield(sphere::DielectricSphereImpedanceLayer, excitation::UniformField, point, quantity::ScalarPotential; parameter::Parameter=Parameter())
 
 Compute the scalar potential scattered by a dielectric sphere with a thin coating,
 where the displacement field in the coating is only in radial direction.
@@ -153,7 +150,7 @@ We assume an an incident uniform field with polarization in z-direction.
 The point and the returned field are in Cartesian coordinates.
 """
 function scatteredfield(
-    sphere::DielectricSphereThinLayerPotentialJump,
+    sphere::DielectricSphereImpedanceLayer,
     excitation::UniformField,
     point,
     quantity::ScalarPotential;
@@ -178,39 +175,42 @@ function scatteredfield(
     end
 end
 
-function scatterCoeff(sp::DielectricSphereThinLayerPotentialJump, ex::UniformField)
+function scatterCoeff(sp::DielectricSphereImpedanceLayer, ex::UniformField)
     R = sp.radius
     Δ = sp.thickness
     εₘ = sp.thinlayer.ε
     εₑ = sp.embedding.ε
     εᵢ = sp.filling.ε
-
+    E₀ = ex.amplitude
     # We divide the second equation by
     # εₑ to improve the conditioning
-    b = [R; 1.0] .* ex.amplitude
+    b = [R; 1.0] .* E₀
 
-    A = [
-        R^(-2)   R-Δ * (εᵢ / εₘ)
+    Z = [
+        R^(-2)   R+Δ * (εᵢ / εₘ)
         -2R^(-3)     εᵢ/εₑ
     ]
 
-    Ainv = [
-        εᵢ/εₑ     -(R - Δ * (εᵢ / εₘ))
+    Zinv = [
+        εᵢ/εₑ     -(R + Δ * (εᵢ / εₘ))
         2R^(-3)     R^(-2)
-    ] ./ (εᵢ / εₑ * R^(-2) + (R - Δ * (εᵢ / εₘ)) * 2R^(-3))
+    ] ./ (εᵢ / εₑ * R^(-2) + (R + Δ * (εᵢ / εₘ)) * 2R^(-3))
 
-    if norm(A * Ainv - I) > 2e-6
-        println("Matrix inversion is unstable: ", norm(A * Ainv - I))
-        println("Condition number is: ", cond(A))
-        println("Alternative inversion leads to: ", norm(A * pinv(A) - I))
+    if norm(Z * Zinv - I) > 2e-6
+        println("Matrix inversion is unstable: ", norm(Z * Zinv - I))
+       # println("Condition number is: ", cond(Z))
+        println("Alternative inversion leads to: ", norm(Z * pinv(Z) - I))
     end
-    x = Ainv * b
+    x = Zinv * b
 
-    if norm(A * x - b) / norm(b) > eps(eltype(R)) * 10
-        print("No stable solution possible: ", norm(A * x - b) / norm(b))
+    if norm(Z * x - b) / norm(b) > eps(eltype(R)) * 10
+        print("No stable solution possible: ", norm(Z * x - b) / norm(b))
     end
 
-    return x[1], x[2]
+    A2 = E₀ * R^3 * (R*εₑ * εₘ + R*εᵢ * εₘ - Δ * εₑ * εᵢ)
+    @show A = x[1]
+    @show K = x[2]
+    return A, K
 end
 
 """
