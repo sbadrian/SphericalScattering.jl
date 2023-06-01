@@ -221,3 +221,43 @@ function impedance(sp::PECSphere, r)
 
     return sqrt(μ / ε)
 end
+
+function medium(sp::DielectricSphere, r)
+    if layer(sp, r) == 2
+        return sp.embedding
+    else
+        return sp.filling
+    end
+end
+
+function medium(sp::PECSphere, r)
+    if layer(sp, r) == 2
+        return sp.embedding
+    else
+        Z = promote_type(typeof(sp.embedding.ε), typeof(sp.embedding.μ))(0.0)
+        return Medium(Z, Z)
+    end
+end
+
+function permittivity(sp, r)
+    md = medium(sp, r)
+    return md.ε
+end
+
+function permeability(sp, r)
+    md = medium(sp, r)
+    return md.μ
+end
+
+function permittivity(sp, pts::AbstractVecOrMat)
+
+    ε = permittivity(sp, norm(first(pts)))
+    F = zeros(typeof(ε), size(pts))
+
+    # --- compute field in Cartesian representation
+    for (ind, point) in enumerate(pts)
+        F[ind] = permittivity(sp, norm(point))
+    end
+
+    return F
+end
