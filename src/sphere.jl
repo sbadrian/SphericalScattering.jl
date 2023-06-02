@@ -126,13 +126,15 @@ end
 
 Constructor for the layered dielectric sphere.
 """
-function LayeredSphere(; radii=error("Missing argument `radii`"), embedding=Medium(ε0, μ0), filling=error("`missing argument `filling`"))
+function LayeredSphere(;
+    radii=error("Missing argument `radii`"), embedding=Medium(ε0, μ0), filling=error("`missing argument `filling`")
+)
 
     if sort(radii) != radii
         error("Radii are not ordered ascendingly.")
     end
 
-    if length(radii) !=  length(filling)
+    if length(radii) != length(filling)
         error("Number of fillings does not match number of radii.")
     end
 
@@ -156,13 +158,15 @@ end
 
 Constructor for the layered dielectric sphere.
 """
-function LayeredSpherePEC(; radii=error("Missing argument `radii`"), embedding=Medium(ε0, μ0), filling=error("Missing argument `filling`"))
+function LayeredSpherePEC(;
+    radii=error("Missing argument `radii`"), embedding=Medium(ε0, μ0), filling=error("Missing argument `filling`")
+)
 
     if sort(radii) != radii
         error("Radii are not ordered ascendingly.")
     end
 
-    if length(radii) !=  length(filling) + 1
+    if length(radii) != length(filling) + 1
         error("Number of fillings does not match number of radii.")
     end
 
@@ -180,7 +184,7 @@ function numlayers(sp::Sphere)
 end
 
 function numlayers(sp::Union{LayeredSphere,LayeredSpherePEC})
-    return length(sp.radii)+1
+    return length(sp.radii) + 1
 end
 
 
@@ -218,7 +222,7 @@ function layer(sp::Union{LayeredSphere,LayeredSpherePEC}, r)
 
     N = numlayers(sp)
 
-    for i = 1:N-1
+    for i in 1:(N - 1)
         if r < sp.radii[i]
             return i # Convention: Boundary belongs to outer layer
         end
