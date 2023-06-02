@@ -37,4 +37,8 @@
     @test permeability(spl, 0.25) == -2.0
     @test permeability(spl, 1.25) == 2.0
 
+    spl = LayeredSpherePEC(; radii=SVector(0.25, 0.3, 0.5), embedding=Medium(-3.0, 2.0), filling=SVector(md1, md2))
+    @test permittivity(spl, 0.1) == 0.0
+    @test permittivity(spl, 0.25) == 15.0
+
 end

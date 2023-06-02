@@ -132,6 +132,10 @@ function LayeredSphere(; radii=error("Missing argument `radii`"), embedding=Medi
         error("Radii are not ordered ascendingly.")
     end
 
+    if length(radii) !=  length(filling)
+        error("Number of fillings does not match number of radii.")
+    end
+
     LayeredSphere(radii, embedding, filling)
 end
 
@@ -156,6 +160,10 @@ function LayeredSpherePEC(; radii=error("Missing argument `radii`"), embedding=M
 
     if sort(radii) != radii
         error("Radii are not ordered ascendingly.")
+    end
+
+    if length(radii) !=  length(filling) + 1
+        error("Number of fillings does not match number of radii.")
     end
 
     LayeredSpherePEC(radii, filling, embedding)
@@ -233,6 +241,12 @@ function wavenumber(sp::PECSphere, ex::Excitation, r)
     end
 end
 
+"""
+    impedance(sp::Sphere, r)
+
+Returns the wavenumber at radius `r` in the sphere `sp`.
+If this part is PEC, a zero medium is returned.
+"""
 function wavenumber(sp::DielectricSphere, ex::Excitation, r)
     if layer(sp, r) == 2
         ε = sp.embedding.ε
@@ -260,6 +274,12 @@ function impedance(sp::DielectricSphere, r)
     return sqrt(μ / ε)
 end
 
+"""
+    impedance(sp::Sphere, r)
+
+Returns the impedance of the sphere `sp` at radius `r`.
+If this part is PEC, a zero medium is returned.
+"""
 function impedance(sp::PECSphere, r)
     if layer(sp, r) == 2
         ε = sp.embedding.ε
@@ -281,6 +301,19 @@ function medium(sp::LayeredSphere, r)
     end
 end
 
+function medium(sp::LayeredSpherePEC, r)
+    N = numlayers(sp) # Number of interior layers
+
+    if layer(sp, r) == N # Outer layer has largest index
+        return sp.embedding
+    elseif layer(sp, r) == 1
+        Z = promote_type(typeof(sp.embedding.ε), typeof(sp.embedding.μ))(0.0)
+        return Medium(Z, Z)
+    else
+        return sp.filling[layer(sp, r) - 1]
+    end
+end
+
 function medium(sp::Union{DielectricSphere,DielectricSphereThinImpedanceLayer}, r)
     if layer(sp, r) == 2
         return sp.embedding
@@ -289,6 +322,12 @@ function medium(sp::Union{DielectricSphere,DielectricSphereThinImpedanceLayer}, 
     end
 end
 
+"""
+    permeability(sp::Sphere, r)
+
+Returns the medium of the sphere `sp` at radius `r`.
+If this part is PEC, a zero medium is returned.
+"""
 function medium(sp::PECSphere, r)
     if layer(sp, r) == 2
         return sp.embedding
@@ -298,11 +337,23 @@ function medium(sp::PECSphere, r)
     end
 end
 
+"""
+    permittivity(sp::Sphere, r)
+
+Returns the permittivity of the sphere `sp` at radius `r`.
+If this part is PEC, a zero permittivity is returned.
+"""
 function permittivity(sp, r)
     md = medium(sp, r)
     return md.ε
 end
 
+"""
+    permeability(sp::Sphere, r)
+
+Returns the permeability of the sphere `sp` at radius `r`.
+If this part is PEC, a zero permeability is returned.
+"""
 function permeability(sp, r)
     md = medium(sp, r)
     return md.μ
@@ -316,6 +367,19 @@ function permittivity(sp, pts::AbstractVecOrMat)
     # --- compute field in Cartesian representation
     for (ind, point) in enumerate(pts)
         F[ind] = permittivity(sp, norm(point))
+    end
+
+    return F
+end
+
+function permeability(sp, pts::AbstractVecOrMat)
+
+    ε = permeability(sp, norm(first(pts)))
+    F = zeros(typeof(ε), size(pts))
+
+    # --- compute field in Cartesian representation
+    for (ind, point) in enumerate(pts)
+        F[ind] = permeability(sp, norm(point))
     end
 
     return F
