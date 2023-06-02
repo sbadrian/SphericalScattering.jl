@@ -295,10 +295,10 @@ function scatteredfield(
     E0 = excitation.amplitude
 
     r = norm(point)
-    a = sphere.radii
+    a = reverse(sphere.radii)
     dir = excitation.direction
     n = length(a)
-    perms = getfield.(vcat(sphere.embedding, sphere.filling), 1)
+    perms = getfield.(vcat(sphere.embedding, reverse(sphere.filling)), 1)
 
     T = promote_type(LR, LC, FC, FT, FR)
 
@@ -365,10 +365,10 @@ function scatteredfield(
     Φ0 = field(excitation, point, quantity)
 
     r = norm(point)
-    a = sphere.radii
+    a = reverse(sphere.radii)
     dir = excitation.direction
     n = length(a)
-    perms = getfield.(vcat(sphere.embedding, sphere.filling), 1)
+    perms = getfield.(vcat(sphere.embedding, reverse(sphere.filling)), 1)
 
     T = promote_type(LR, LC, FC, FT, FR)
 
@@ -435,10 +435,10 @@ function scatteredfield(
     Φ0 = field(excitation, point, quantity)
 
     r = norm(point)
-    a = sphere.radii
+    a = reverse(sphere.radii)
     dir = excitation.direction
     n = length(a) - 1
-    perms = getfield.(vcat(sphere.embedding, sphere.filling), 1)
+    perms = getfield.(vcat(sphere.embedding, reverse(sphere.filling)), 1)
 
     T = promote_type(LR, LC, FC, FT, FR)
 
@@ -510,10 +510,10 @@ function scatteredfield(
 
     E0 = excitation.amplitude
     r = norm(point)
-    a = sphere.radii
+    a = reverse(sphere.radii)
     dir = excitation.direction
     n = length(a) - 1
-    perms = getfield.(vcat(sphere.embedding, sphere.filling), 1)
+    perms = getfield.(vcat(sphere.embedding, reverse(sphere.filling)), 1)
 
     T = promote_type(LR, LC, FC, FT, FR)
 
