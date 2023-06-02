@@ -19,4 +19,22 @@
 
     @test SphericalScattering.wavenumber(sp, planeWave(sp; frequency=1e8), 2.0) ≈ 8.8857658e8 rtol = 1e-5
 
+    md1 = Medium(15.0, -2.1) # innermost medium
+    md2 = Medium(-10, -2.0) # innermost medium
+    spl = LayeredSphere(; radii=SVector(0.25, 0.3, 0.5), embedding=Medium(-3.0, 2.0), filling=SVector(md1, md2, md))
+
+    @test numlayers(spl) == 4
+
+    @test layer(spl, 0.1) == 1
+    @test layer(spl, 0.24999) == 1
+    @test layer(spl, 0.25) == 2
+    @test layer(spl, 0.4) == 3
+    @test layer(spl, 0.5) == 4
+    @test layer(spl, 1.6) == 4
+
+    @test permittivity(spl, 0.1) == 15.0
+    @test permittivity(spl, 0.24999) == 15.0
+    @test permeability(spl, 0.25) == -2.0
+    @test permeability(spl, 1.25) == 2.0
+
 end

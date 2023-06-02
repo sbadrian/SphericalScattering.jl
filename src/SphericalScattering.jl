@@ -45,6 +45,7 @@ export SphericalMode, SphericalModeTE, SphericalModeTM
 export PECSphere, DielectricSphere, LayeredSphere, LayeredSpherePEC
 export DielectricSphereThinImpedanceLayer
 export field, scatteredfield
+export numlayers, layer
 export permittivity, permeability
 
 

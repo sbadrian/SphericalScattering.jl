@@ -126,9 +126,14 @@ end
 
 Constructor for the layered dielectric sphere.
 """
-LayeredSphere(; radii=error("Missing argument `radii`"), embedding=Medium(ε0, μ0), filling=error("`missing argument `filling`")) =
-    LayeredSphere(radii, embedding, filling)
+function LayeredSphere(; radii=error("Missing argument `radii`"), embedding=Medium(ε0, μ0), filling=error("`missing argument `filling`"))
 
+    if sort(radii) != radii
+        error("Radii are not ordered ascendingly.")
+    end
+
+    LayeredSphere(radii, embedding, filling)
+end
 
 
 
@@ -147,9 +152,28 @@ end
 
 Constructor for the layered dielectric sphere.
 """
-LayeredSpherePEC(; radii=error("Missing argument `radii`"), embedding=Medium(ε0, μ0), filling=error("Missing argument `filling`")) =
-    LayeredSpherePEC(radii, filling, embedding)
+function LayeredSpherePEC(; radii=error("Missing argument `radii`"), embedding=Medium(ε0, μ0), filling=error("Missing argument `filling`"))
 
+    if sort(radii) != radii
+        error("Radii are not ordered ascendingly.")
+    end
+
+    LayeredSpherePEC(radii, filling, embedding)
+end
+
+
+"""
+    numlayers(sp::Sphere)
+
+Returns the number of layers.
+"""
+function numlayers(sp::Sphere)
+    return 2
+end
+
+function numlayers(sp::Union{LayeredSphere,LayeredSpherePEC})
+    return length(sp.radii)+1
+end
 
 
 
@@ -168,6 +192,31 @@ function layer(sp::Sphere, r)
     else
         return 1
     end
+end
+
+
+
+"""
+    layer(sp::LayeredSphere, r)
+
+Returns the index of the layer, `r` is located, where `1` denotes the inner most layer. 
+"""
+function layer(sp::Union{LayeredSphere,LayeredSpherePEC}, r)
+    # Using Jin's numbering from the multi-layered cartesian
+    # in anticipation. For PEC and dielectric sphere;
+    # 1 = interior, 2 = exterior
+
+    r < 0.0 && error("The radius must be a positive number.")
+
+    N = numlayers(sp)
+
+    for i = 1:N-1
+        if r < sp.radii[i]
+            return i # Convention: Boundary belongs to outer layer
+        end
+    end
+
+    return N
 end
 
 function wavenumber(sp::PECSphere, ex::Excitation, r)
@@ -222,7 +271,17 @@ function impedance(sp::PECSphere, r)
     return sqrt(μ / ε)
 end
 
-function medium(sp::DielectricSphere, r)
+function medium(sp::LayeredSphere, r)
+    N = numlayers(sp) # Number of interior layers
+
+    if layer(sp, r) == N # Outer layer has largest index
+        return sp.embedding
+    else
+        return sp.filling[layer(sp, r)]
+    end
+end
+
+function medium(sp::Union{DielectricSphere,DielectricSphereThinImpedanceLayer}, r)
     if layer(sp, r) == 2
         return sp.embedding
     else
